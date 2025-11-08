@@ -60,25 +60,33 @@ months_tracked = len(loader.get_available_months())
 # Calculate total sales from item data
 total_sales = 0
 total_revenue = 0.0
+
 if not monthly_item.empty:
+    # Convert Count column to numeric (handle string values)
     if 'Count' in monthly_item.columns:
+        monthly_item['Count'] = pd.to_numeric(monthly_item['Count'], errors='coerce').fillna(0)
         total_sales = int(monthly_item['Count'].sum())
+    
+    # Clean and convert Amount column
     if 'Amount' in monthly_item.columns:
         # Clean amount column (remove $ and commas)
-        monthly_item['Amount_Clean'] = monthly_item['Amount'].astype(str).str.replace('$', '').str.replace(',', '').astype(float)
+        monthly_item['Amount_Clean'] = pd.to_numeric(
+            monthly_item['Amount'].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False),
+            errors='coerce'
+        ).fillna(0.0)
         total_revenue = float(monthly_item['Amount_Clean'].sum())
 
 with col1:
     viz.create_kpi_card(
         "Total Orders",
-        f"{total_sales:,}" if isinstance(total_sales, (int, float)) else str(total_sales),
+        f"{total_sales:,}",
         delta=None
     )
 
 with col2:
     viz.create_kpi_card(
         "Total Revenue",
-        f"${total_revenue:,.2f}" if isinstance(total_revenue, (int, float)) else "$0.00",
+        f"${total_revenue:,.2f}",
         delta=None
     )
 
@@ -166,6 +174,9 @@ if not monthly_item.empty:
 
     # Aggregate sales across all months
     if 'Item Name' in monthly_item.columns and 'Count' in monthly_item.columns:
+        # Ensure Count is numeric
+        monthly_item['Count'] = pd.to_numeric(monthly_item['Count'], errors='coerce').fillna(0)
+        
         # Group by item and sum counts and revenue
         agg_dict = {'Count': 'sum'}
         if 'Amount_Clean' in monthly_item.columns:
@@ -180,11 +191,11 @@ if not monthly_item.empty:
         ranking_data = {
             'Rank': list(range(1, len(top_20) + 1)),
             'Dish Name': top_20.index.tolist(),
-            'Total Orders': top_20['Count'].values.tolist(),
+            'Total Orders': [int(x) for x in top_20['Count'].values],
         }
         
         if 'Amount_Clean' in top_20.columns:
-            ranking_data['Revenue'] = [f"${x:,.2f}" for x in top_20['Amount_Clean'].values]
+            ranking_data['Revenue'] = [f"${float(x):,.2f}" for x in top_20['Amount_Clean'].values]
         
         ranking_df = pd.DataFrame(ranking_data)
 
@@ -228,11 +239,11 @@ if not monthly_item.empty:
 
             bottom_data = {
                 'Dish Name': bottom_10.index.tolist(),
-                'Total Orders': bottom_10['Count'].values.tolist(),
+                'Total Orders': [int(x) for x in bottom_10['Count'].values],
             }
             
             if 'Amount_Clean' in bottom_10.columns:
-                bottom_data['Revenue'] = [f"${x:,.2f}" for x in bottom_10['Amount_Clean'].values]
+                bottom_data['Revenue'] = [f"${float(x):,.2f}" for x in bottom_10['Amount_Clean'].values]
             
             bottom_df = pd.DataFrame(bottom_data)
 
@@ -251,6 +262,9 @@ if not monthly_category.empty:
     st.header("🍜 Category Performance")
 
     if 'Category' in monthly_category.columns and 'Count' in monthly_category.columns:
+        # Ensure Count is numeric
+        monthly_category['Count'] = pd.to_numeric(monthly_category['Count'], errors='coerce').fillna(0)
+        
         category_sales = monthly_category.groupby('Category')['Count'].sum().sort_values(ascending=False)
 
         col1, col2 = st.columns([2, 1])
@@ -264,7 +278,7 @@ if not monthly_category.empty:
             fig = go.Figure(data=[
                 go.Bar(
                     y=top_10_cats.index.tolist(),
-                    x=top_10_cats.values.tolist(),
+                    x=[float(x) for x in top_10_cats.values],
                     orientation='h',
                     marker_color='#4ECDC4',
                     text=[int(x) for x in top_10_cats.values],
@@ -300,7 +314,7 @@ with col1:
     st.write(f"- ✅ {total_ingredients} ingredients tracked")
     st.write(f"- ✅ {total_dishes} dishes in recipe database")
     st.write(f"- ✅ {months_tracked} months of sales data")
-    st.write(f"- ✅ {total_sales:,} total orders processed" if isinstance(total_sales, (int, float)) else f"- ✅ {total_sales} total orders processed")
+    st.write(f"- ✅ {total_sales:,} total orders processed")
 
 with col2:
     st.warning("ℹ️ **Important Notes**")
@@ -334,9 +348,13 @@ with st.expander("View Actionable Insights", expanded=True):
 if not monthly_group.empty:
     st.header("📅 Monthly Performance Snapshot")
 
-    # Add Amount_Clean to monthly_group if not exists
-    if 'Amount' in monthly_group.columns and 'Amount_Clean' not in monthly_group.columns:
-        monthly_group['Amount_Clean'] = monthly_group['Amount'].astype(str).str.replace('$', '').str.replace(',', '').astype(float)
+    # Clean Amount column if it exists
+    if 'Amount' in monthly_group.columns:
+        if 'Amount_Clean' not in monthly_group.columns:
+            monthly_group['Amount_Clean'] = pd.to_numeric(
+                monthly_group['Amount'].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False),
+                errors='coerce'
+            ).fillna(0.0)
     
     if 'month' in monthly_group.columns and 'Amount_Clean' in monthly_group.columns:
         monthly_revenue = monthly_group.groupby('month')['Amount_Clean'].sum()
@@ -346,7 +364,7 @@ if not monthly_group.empty:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=monthly_revenue.index.tolist(),
-            y=monthly_revenue.values.tolist(),
+            y=[float(x) for x in monthly_revenue.values],
             mode='lines+markers',
             name='Revenue',
             line=dict(color='#FF6B6B', width=3),
