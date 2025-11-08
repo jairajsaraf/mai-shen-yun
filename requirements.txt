@@ -1,0 +1,23 @@
+# Core Dependencies
+streamlit==1.31.0
+pandas==2.1.4
+numpy==1.26.3
+
+# Data Processing
+openpyxl==3.1.2  # For reading Excel files
+xlrd==2.0.1
+
+# Visualization
+plotly==5.18.0
+altair==5.2.0
+matplotlib==3.8.2
+seaborn==0.13.1
+
+# Predictive Analytics
+prophet==1.1.5
+scikit-learn==1.4.0
+statsmodels==0.14.1
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
