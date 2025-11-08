@@ -18,7 +18,7 @@ class DataLoader:
 
     @st.cache_data(ttl=3600)
     def load_ingredient_data(_self) -> pd.DataFrame:
-        """Load ingredient master list"""
+        """Load ingredient master list (recipe data)"""
         file_path = _self.data_dir / "MSY Data - Ingredient.csv"
         try:
             df = pd.read_csv(file_path)
@@ -42,9 +42,14 @@ class DataLoader:
             return pd.DataFrame()
 
     @st.cache_data(ttl=3600)
-    def load_monthly_data(_self, month: str = None) -> pd.DataFrame:
+    def load_monthly_data(_self, month: str = None, sheet_name: str = 'data 3') -> pd.DataFrame:
         """
         Load monthly sales/usage data from Excel files
+        Each Excel file has 3 sheets:
+        - 'data 1': Group level (Lunch Menu, All Day Menu, etc.)
+        - 'data 2': Category level (Fried Chicken, Ramen, etc.)
+        - 'data 3': Item level (individual dishes) - DEFAULT
+
         If month is None, loads all months and combines them
         """
         try:
@@ -55,8 +60,10 @@ class DataLoader:
                 # Load specific month
                 matching_files = [f for f in excel_files if month.lower() in f.name.lower()]
                 if matching_files:
-                    df = pd.read_excel(matching_files[0])
+                    df = pd.read_excel(matching_files[0], sheet_name=sheet_name)
                     df['month'] = month
+                    # Clean column names
+                    df.columns = df.columns.str.strip()
                     return df
                 else:
                     st.warning(f"No data found for {month}")
@@ -75,8 +82,10 @@ class DataLoader:
                             break
 
                     if file_month:
-                        df = pd.read_excel(excel_file)
+                        df = pd.read_excel(excel_file, sheet_name=sheet_name)
                         df['month'] = file_month
+                        # Clean column names
+                        df.columns = df.columns.str.strip()
                         all_data.append(df)
 
                 if all_data:
@@ -88,6 +97,23 @@ class DataLoader:
         except Exception as e:
             st.error(f"Error loading monthly data: {e}")
             return pd.DataFrame()
+
+    @st.cache_data(ttl=3600)
+    def load_all_sheets(_self, month: str = None) -> Dict[str, pd.DataFrame]:
+        """
+        Load all 3 sheets from monthly Excel files
+        Returns dictionary with keys: 'group', 'category', 'item'
+        """
+        try:
+            result = {
+                'group': _self.load_monthly_data(month, sheet_name='data 1'),
+                'category': _self.load_monthly_data(month, sheet_name='data 2'),
+                'item': _self.load_monthly_data(month, sheet_name='data 3')
+            }
+            return result
+        except Exception as e:
+            st.error(f"Error loading all sheets: {e}")
+            return {'group': pd.DataFrame(), 'category': pd.DataFrame(), 'item': pd.DataFrame()}
 
     @st.cache_data(ttl=3600)
     def get_available_months(_self) -> List[str]:
@@ -121,10 +147,17 @@ class DataLoader:
 
     def get_data_summary(self) -> Dict:
         """Get summary of all available data"""
+        all_sheets = self.load_all_sheets()
+
         summary = {
             'ingredients_available': not self.load_ingredient_data().empty,
             'shipments_available': not self.load_shipment_data().empty,
             'available_months': self.get_available_months(),
-            'total_months': len(self.get_available_months())
+            'total_months': len(self.get_available_months()),
+            'total_records': {
+                'group': len(all_sheets['group']),
+                'category': len(all_sheets['category']),
+                'item': len(all_sheets['item'])
+            }
         }
         return summary
