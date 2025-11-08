@@ -59,40 +59,40 @@ months_tracked = len(loader.get_available_months())
 
 # Calculate total sales from item data
 total_sales = 0
-total_revenue = 0
+total_revenue = 0.0
 if not monthly_item.empty:
     if 'Count' in monthly_item.columns:
-        total_sales = monthly_item['Count'].sum()
+        total_sales = int(monthly_item['Count'].sum())
     if 'Amount' in monthly_item.columns:
         # Clean amount column (remove $ and commas)
         monthly_item['Amount_Clean'] = monthly_item['Amount'].astype(str).str.replace('$', '').str.replace(',', '').astype(float)
-        total_revenue = monthly_item['Amount_Clean'].sum()
+        total_revenue = float(monthly_item['Amount_Clean'].sum())
 
 with col1:
     viz.create_kpi_card(
         "Total Orders",
-        f"{total_sales:,}",
+        f"{total_sales:,}" if isinstance(total_sales, (int, float)) else str(total_sales),
         delta=None
     )
 
 with col2:
     viz.create_kpi_card(
         "Total Revenue",
-        f"${total_revenue:,.2f}",
+        f"${total_revenue:,.2f}" if isinstance(total_revenue, (int, float)) else "$0.00",
         delta=None
     )
 
 with col3:
     viz.create_kpi_card(
         "Tracked Ingredients",
-        f"{total_ingredients}",
+        str(total_ingredients),
         delta=None
     )
 
 with col4:
     viz.create_kpi_card(
         "Months Tracked",
-        f"{months_tracked}",
+        str(months_tracked),
         delta=None
     )
 
@@ -167,20 +167,26 @@ if not monthly_item.empty:
     # Aggregate sales across all months
     if 'Item Name' in monthly_item.columns and 'Count' in monthly_item.columns:
         # Group by item and sum counts and revenue
-        dish_sales = monthly_item.groupby('Item Name').agg({
-            'Count': 'sum',
-            'Amount_Clean': 'sum' if 'Amount_Clean' in monthly_item.columns else 'count'
-        }).sort_values('Count', ascending=False)
+        agg_dict = {'Count': 'sum'}
+        if 'Amount_Clean' in monthly_item.columns:
+            agg_dict['Amount_Clean'] = 'sum'
+        
+        dish_sales = monthly_item.groupby('Item Name').agg(agg_dict).sort_values('Count', ascending=False)
 
         st.subheader("📈 Sales Rankings")
 
         # Create ranking dataframe (Top 20)
-        ranking_df = pd.DataFrame({
-            'Rank': range(1, min(21, len(dish_sales) + 1)),
-            'Dish Name': dish_sales.head(20).index,
-            'Total Orders': dish_sales.head(20)['Count'].values,
-            'Revenue': [f"${x:,.2f}" for x in dish_sales.head(20)['Amount_Clean'].values] if 'Amount_Clean' in dish_sales.columns else ['N/A'] * min(20, len(dish_sales))
-        })
+        top_20 = dish_sales.head(20)
+        ranking_data = {
+            'Rank': list(range(1, len(top_20) + 1)),
+            'Dish Name': top_20.index.tolist(),
+            'Total Orders': top_20['Count'].values.tolist(),
+        }
+        
+        if 'Amount_Clean' in top_20.columns:
+            ranking_data['Revenue'] = [f"${x:,.2f}" for x in top_20['Amount_Clean'].values]
+        
+        ranking_df = pd.DataFrame(ranking_data)
 
         col1, col2 = st.columns([3, 1])
 
@@ -194,17 +200,18 @@ if not monthly_item.empty:
                     "Rank": st.column_config.NumberColumn("🏅 Rank", width="small"),
                     "Dish Name": st.column_config.TextColumn("Dish Name", width="large"),
                     "Total Orders": st.column_config.NumberColumn("📦 Orders", format="%d"),
-                    "Revenue": st.column_config.TextColumn("💰 Revenue", width="medium")
+                    "Revenue": st.column_config.TextColumn("💰 Revenue", width="medium") if 'Revenue' in ranking_data else None
                 }
             )
 
         with col2:
             st.subheader("📊 Summary")
             st.metric("Total Dishes", len(dish_sales))
-            st.metric("Total Orders", f"{dish_sales['Count'].sum():,}")
+            st.metric("Total Orders", f"{int(dish_sales['Count'].sum()):,}")
 
             if 'Amount_Clean' in dish_sales.columns:
-                st.metric("Avg Revenue/Dish", f"${dish_sales['Amount_Clean'].mean():,.2f}")
+                avg_rev = float(dish_sales['Amount_Clean'].mean())
+                st.metric("Avg Revenue/Dish", f"${avg_rev:,.2f}")
 
             st.markdown("---")
 
@@ -213,17 +220,21 @@ if not monthly_item.empty:
             for i, (dish, row) in enumerate(dish_sales.head(3).iterrows(), 1):
                 emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
                 st.write(f"{emoji} **{dish}**")
-                st.write(f"   {row['Count']:,} orders")
+                st.write(f"   {int(row['Count']):,} orders")
 
         # Bottom 10 performers
         with st.expander("📉 View Bottom 10 Performers"):
             bottom_10 = dish_sales.tail(10).sort_values('Count', ascending=True)
 
-            bottom_df = pd.DataFrame({
-                'Dish Name': bottom_10.index,
-                'Total Orders': bottom_10['Count'].values,
-                'Revenue': [f"${x:,.2f}" for x in bottom_10['Amount_Clean'].values] if 'Amount_Clean' in bottom_10.columns else ['N/A'] * len(bottom_10)
-            })
+            bottom_data = {
+                'Dish Name': bottom_10.index.tolist(),
+                'Total Orders': bottom_10['Count'].values.tolist(),
+            }
+            
+            if 'Amount_Clean' in bottom_10.columns:
+                bottom_data['Revenue'] = [f"${x:,.2f}" for x in bottom_10['Amount_Clean'].values]
+            
+            bottom_df = pd.DataFrame(bottom_data)
 
             st.dataframe(
                 bottom_df,
@@ -248,13 +259,15 @@ if not monthly_category.empty:
             # Create horizontal bar chart
             import plotly.graph_objects as go
 
+            top_10_cats = category_sales.head(10)
+            
             fig = go.Figure(data=[
                 go.Bar(
-                    y=category_sales.head(10).index,
-                    x=category_sales.head(10).values,
+                    y=top_10_cats.index.tolist(),
+                    x=top_10_cats.values.tolist(),
                     orientation='h',
                     marker_color='#4ECDC4',
-                    text=category_sales.head(10).values,
+                    text=[int(x) for x in top_10_cats.values],
                     textposition='auto',
                 )
             ])
@@ -272,8 +285,8 @@ if not monthly_category.empty:
         with col2:
             st.subheader("Category Stats")
             st.metric("Total Categories", len(category_sales))
-            st.metric("Top Category", category_sales.index[0])
-            st.metric("Top Category Orders", f"{category_sales.values[0]:,}")
+            st.metric("Top Category", str(category_sales.index[0]))
+            st.metric("Top Category Orders", f"{int(category_sales.values[0]):,}")
 
 st.markdown("---")
 
@@ -287,7 +300,7 @@ with col1:
     st.write(f"- ✅ {total_ingredients} ingredients tracked")
     st.write(f"- ✅ {total_dishes} dishes in recipe database")
     st.write(f"- ✅ {months_tracked} months of sales data")
-    st.write(f"- ✅ {total_sales:,} total orders processed")
+    st.write(f"- ✅ {total_sales:,} total orders processed" if isinstance(total_sales, (int, float)) else f"- ✅ {total_sales} total orders processed")
 
 with col2:
     st.warning("ℹ️ **Important Notes**")
@@ -321,6 +334,10 @@ with st.expander("View Actionable Insights", expanded=True):
 if not monthly_group.empty:
     st.header("📅 Monthly Performance Snapshot")
 
+    # Add Amount_Clean to monthly_group if not exists
+    if 'Amount' in monthly_group.columns and 'Amount_Clean' not in monthly_group.columns:
+        monthly_group['Amount_Clean'] = monthly_group['Amount'].astype(str).str.replace('$', '').str.replace(',', '').astype(float)
+    
     if 'month' in monthly_group.columns and 'Amount_Clean' in monthly_group.columns:
         monthly_revenue = monthly_group.groupby('month')['Amount_Clean'].sum()
 
@@ -328,8 +345,8 @@ if not monthly_group.empty:
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=monthly_revenue.index,
-            y=monthly_revenue.values,
+            x=monthly_revenue.index.tolist(),
+            y=monthly_revenue.values.tolist(),
             mode='lines+markers',
             name='Revenue',
             line=dict(color='#FF6B6B', width=3),
