@@ -22,6 +22,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Hide anchor links on headers
+st.markdown("""
+    <style>
+    .stHeadingContainer a {
+        display: none;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Custom CSS
 st.markdown("""
     <style>
@@ -88,7 +97,7 @@ def main():
 
     with col1:
         status = "✅ Available" if summary['ingredients_available'] else "❌ Missing"
-        st.metric("Ingredient Data", status)
+        st.metric("Recipe Data", status)
 
     with col2:
         status = "✅ Available" if summary['shipments_available'] else "❌ Missing"
@@ -98,13 +107,22 @@ def main():
         st.metric("Available Months", summary['total_months'])
 
     with col4:
-        st.metric("Data Status", "Ready" if summary['total_months'] > 0 else "Incomplete")
+        total_sales_records = sum(summary['total_records'].values())
+        st.metric("Sales Records", f"{total_sales_records:,}")
 
     # Display available months
     if summary['available_months']:
         st.success(f"**Data available for:** {', '.join(summary['available_months'])}")
     else:
         st.warning("No monthly data found")
+
+    # Data sheets info
+    st.info(f"""
+    📊 **Data Structure**: Each month contains 3 sheets of data
+    - Sheet 1 (Group): {summary['total_records']['group']} records
+    - Sheet 2 (Category): {summary['total_records']['category']} records
+    - Sheet 3 (Item): {summary['total_records']['item']} records
+    """)
 
     # Quick insights section
     st.header("🎯 Quick Insights")
@@ -117,25 +135,34 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            st.subheader("📋 Menu Items")
-            st.info(f"Total dishes on menu: **{len(ingredient_df)}**")
+            st.subheader("📋 Recipe Database")
+            # Count total ingredients (columns excluding dish_name)
+            total_ingredients = len([col for col in ingredient_df.columns if col != 'Item name'])
+            st.info(f"Total ingredient types: **{total_ingredients}**")
 
-            if 'dish_name' in ingredient_df.columns:
+            if 'Item name' in ingredient_df.columns:
+                st.write(f"Total dishes on menu: **{len(ingredient_df)}**")
                 st.write("**Sample menu items:**")
-                sample_items = ingredient_df['dish_name'].head(5).tolist()
+                sample_items = ingredient_df['Item name'].head(5).tolist()
                 for item in sample_items:
                     st.write(f"- {item}")
 
         with col2:
             st.subheader("📦 Shipments")
             if not shipment_df.empty:
-                st.info(f"Total ingredients tracked: **{len(shipment_df)}**")
+                st.info(f"Tracked ingredients: **{len(shipment_df)}** (some ingredients may be aggregated)")
 
                 if 'frequency' in shipment_df.columns:
                     freq_counts = shipment_df['frequency'].value_counts()
                     st.write("**Shipment frequencies:**")
                     for freq, count in freq_counts.items():
                         st.write(f"- {freq.title()}: {count} ingredients")
+
+                # Note about mismatch
+                st.warning("""
+                ℹ️ **Note**: There are 18 ingredients in recipes but 14 tracked shipments.
+                Some ingredients may be combined (e.g., "Peas + Carrot") or purchased less frequently.
+                """)
 
     # Getting started guide
     st.header("🚀 Getting Started")
@@ -188,9 +215,10 @@ def main():
         # Display file information
         st.write("**Loaded Files:**")
         st.json({
-            "Ingredient Data": "MSY Data - Ingredient.csv",
-            "Shipment Data": "MSY Data - Shipment.csv",
-            "Monthly Data": summary['available_months']
+            "Recipe Data": "MSY Data - Ingredient.csv (17 dishes, 18 ingredients)",
+            "Shipment Data": "MSY Data - Shipment.csv (14 ingredients)",
+            "Monthly Sales Data": f"{summary['total_months']} months ({', '.join(summary['available_months'])})",
+            "Sheets per Month": 3
         })
 
     # Footer
