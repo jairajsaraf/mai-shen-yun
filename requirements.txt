@@ -1,23 +1,23 @@
-# Core Dependencies
-streamlit==1.31.0
-pandas==2.1.4
-numpy==1.26.3
+# Core Dependencies - Updated for Python 3.13 compatibility
+streamlit>=1.31.0
+pandas>=2.2.0
+numpy>=1.26.0
 
 # Data Processing
-openpyxl==3.1.2  # For reading Excel files
-xlrd==2.0.1
+openpyxl>=3.1.0
+xlrd>=2.0.1
 
 # Visualization
-plotly==5.18.0
-altair==5.2.0
-matplotlib==3.8.2
-seaborn==0.13.1
+plotly>=5.18.0
+altair>=5.2.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
 
-# Predictive Analytics
-prophet==1.1.5
-scikit-learn==1.4.0
-statsmodels==0.14.1
+# Predictive Analytics (Prophet requires specific setup on Windows)
+# prophet>=1.1.0  # Optional - uncomment if you have C++ build tools
+scikit-learn>=1.4.0
+statsmodels>=0.14.0
 
 # Utilities
-python-dateutil==2.8.2
-pytz==2023.3
+python-dateutil>=2.8.0
+pytz>=2023.3
