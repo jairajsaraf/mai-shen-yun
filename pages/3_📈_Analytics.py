@@ -125,7 +125,7 @@ def calculate_ingredient_consumption(sales_df, recipe_df, ingredient_list):
             quantity_sold = sale_row['Count']
 
             # Find matching recipe
-            recipe_match = recipe_clean[recipe_clean['Item name'].str.contains(dish_name.split()[0], case=False, na=False)]
+            recipe_match = recipe_clean[recipe_clean['dish_name'].str.contains(dish_name.split()[0], case=False, na=False)]
 
             if not recipe_match.empty:
                 recipe = recipe_match.iloc[0]
