@@ -19,16 +19,7 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Overview - Mai Shen Yun", page_icon="📊", layout="wide")
 
-# Hide anchor links
-st.markdown("""
-    <style>
-    .stHeadingContainer a {
-        display: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("📊 Executive Overview")
+st.title("📊 Executive Overview", anchor=False)
 st.markdown("---")
 
 # Initialize classes
@@ -48,7 +39,7 @@ monthly_category = all_sheets['category']
 monthly_item = all_sheets['item']
 
 # KPIs Section
-st.header("🎯 Key Performance Indicators")
+st.header("🎯 Key Performance Indicators", anchor=False)
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -107,7 +98,7 @@ with col4:
 st.markdown("---")
 
 # Monthly Data Sheet Info
-st.header("📊 Data Sheet Structure")
+st.header("📊 Data Sheet Structure", anchor=False)
 
 col1, col2, col3 = st.columns(3)
 
@@ -147,7 +138,7 @@ st.markdown("---")
 
 # Shipment Overview
 if not shipment_df.empty:
-    st.header("📦 Shipment Overview")
+    st.header("📦 Shipment Overview", anchor=False)
 
     # Clean data
     shipment_clean = processor.clean_shipment_data(shipment_df)
@@ -160,7 +151,7 @@ if not shipment_df.empty:
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("Frequency Breakdown")
+        st.subheader("Frequency Breakdown", anchor=False)
         if 'frequency' in shipment_clean.columns:
             freq_counts = shipment_clean['frequency'].value_counts()
             for freq, count in freq_counts.items():
@@ -170,7 +161,7 @@ st.markdown("---")
 
 # Top Selling Dishes with Ranking
 if not monthly_item.empty:
-    st.header("🏆 Top Selling Dishes (Ranked)")
+    st.header("🏆 Top Selling Dishes (Ranked)", anchor=False)
 
     # Aggregate sales across all months
     if 'Item Name' in monthly_item.columns and 'Count' in monthly_item.columns:
@@ -184,7 +175,7 @@ if not monthly_item.empty:
         
         dish_sales = monthly_item.groupby('Item Name').agg(agg_dict).sort_values('Count', ascending=False)
 
-        st.subheader("📈 Sales Rankings")
+        st.subheader("📈 Sales Rankings", anchor=False)
 
         # Create ranking dataframe (Top 20)
         top_20 = dish_sales.head(20)
@@ -216,7 +207,7 @@ if not monthly_item.empty:
             )
 
         with col2:
-            st.subheader("📊 Summary")
+            st.subheader("📊 Summary", anchor=False)
             st.metric("Total Dishes", len(dish_sales))
             st.metric("Total Orders", f"{int(dish_sales['Count'].sum()):,}")
 
@@ -259,7 +250,7 @@ st.markdown("---")
 
 # Category Performance
 if not monthly_category.empty:
-    st.header("🍜 Category Performance")
+    st.header("🍜 Category Performance", anchor=False)
 
     if 'Category' in monthly_category.columns and 'Count' in monthly_category.columns:
         # Ensure Count is numeric
@@ -297,7 +288,7 @@ if not monthly_category.empty:
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            st.subheader("Category Stats")
+            st.subheader("Category Stats", anchor=False)
             st.metric("Total Categories", len(category_sales))
             st.metric("Top Category", str(category_sales.index[0]))
             st.metric("Top Category Orders", f"{int(category_sales.values[0]):,}")
@@ -305,7 +296,7 @@ if not monthly_category.empty:
 st.markdown("---")
 
 # Alerts Section
-st.header("🚨 System Alerts & Insights")
+st.header("🚨 System Alerts & Insights", anchor=False)
 
 col1, col2 = st.columns(2)
 
@@ -324,7 +315,7 @@ with col2:
     st.write("- Use Analytics page for deeper insights")
 
 # Recommendations
-st.header("💡 Executive Recommendations")
+st.header("💡 Executive Recommendations", anchor=False)
 
 with st.expander("View Actionable Insights", expanded=True):
     st.markdown("""
@@ -346,7 +337,7 @@ with st.expander("View Actionable Insights", expanded=True):
 
 # Monthly trends snapshot
 if not monthly_group.empty:
-    st.header("📅 Monthly Performance Snapshot")
+    st.header("📅 Monthly Performance Snapshot", anchor=False)
 
     # Clean Amount column if it exists
     if 'Amount' in monthly_group.columns:

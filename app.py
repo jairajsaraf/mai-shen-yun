@@ -22,15 +22,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Hide anchor links on headers
-st.markdown("""
-    <style>
-    .stHeadingContainer a {
-        display: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # Custom CSS
 st.markdown("""
     <style>
@@ -76,7 +67,7 @@ def main():
     # Sidebar
     with st.sidebar:
         st.image("https://img.icons8.com/color/96/000000/restaurant-menu.png", width=100)
-        st.title("Navigation")
+        st.title("Navigation", anchor=False)
         st.info("""
         **Welcome to Mai Shen Yun Dashboard!**
 
@@ -89,7 +80,7 @@ def main():
         """)
 
     # Data summary
-    st.header("📋 Data Summary")
+    st.header("📋 Data Summary", anchor=False)
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -125,7 +116,7 @@ def main():
     """)
 
     # Quick insights section
-    st.header("🎯 Quick Insights")
+    st.header("🎯 Quick Insights", anchor=False)
 
     # Load data for quick insights
     ingredient_df = data_loader.load_ingredient_data()
@@ -135,7 +126,7 @@ def main():
         col1, col2 = st.columns(2)
 
         with col1:
-            st.subheader("📋 Recipe Database")
+            st.subheader("📋 Recipe Database", anchor=False)
             # Count total ingredients (columns excluding dish_name)
             total_ingredients = len([col for col in ingredient_df.columns if col != 'Item name'])
             st.info(f"Total ingredient types: **{total_ingredients}**")
@@ -148,7 +139,7 @@ def main():
                     st.write(f"- {item}")
 
         with col2:
-            st.subheader("📦 Shipments")
+            st.subheader("📦 Shipments", anchor=False)
             if not shipment_df.empty:
                 st.info(f"Tracked ingredients: **{len(shipment_df)}** (some ingredients may be aggregated)")
 
@@ -165,7 +156,7 @@ def main():
                 """)
 
     # Getting started guide
-    st.header("🚀 Getting Started")
+    st.header("🚀 Getting Started", anchor=False)
 
     with st.expander("ℹ️ How to use this dashboard", expanded=False):
         st.markdown("""
@@ -204,7 +195,7 @@ def main():
         """)
 
     # System information
-    st.header("ℹ️ System Information")
+    st.header("ℹ️ System Information", anchor=False)
 
     with st.expander("View system details"):
         st.write("**Dashboard Version:** 1.0.0")

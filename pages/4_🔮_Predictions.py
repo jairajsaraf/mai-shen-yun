@@ -22,16 +22,7 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Predictions - Mai Shen Yun", page_icon="🔮", layout="wide")
 
-# Hide anchor links
-st.markdown("""
-    <style>
-    .stHeadingContainer a {
-        display: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("🔮 Predictive Analytics")
+st.title("🔮 Predictive Analytics", anchor=False)
 st.markdown("---")
 
 # Initialize
@@ -55,7 +46,7 @@ tracked_ingredients = shipment_clean['ingredient'].tolist() if not shipment_clea
 
 # Sidebar
 with st.sidebar:
-    st.header("🎯 Forecast Settings")
+    st.header("🎯 Forecast Settings", anchor=False)
 
     forecast_method = st.selectbox(
         "Forecasting Method",
@@ -146,7 +137,7 @@ def calculate_ingredient_consumption(sales_df, recipe_df, ingredient_list):
     return pd.DataFrame(consumption_data)
 
 # Main content
-st.header("📊 Demand Forecasting")
+st.header("📊 Demand Forecasting", anchor=False)
 
 if not monthly_item.empty and not ingredient_df.empty and tracked_ingredients:
     # Calculate ingredient consumption from sales
@@ -189,7 +180,7 @@ if not monthly_item.empty and not ingredient_df.empty and tracked_ingredients:
                     st.plotly_chart(fig, use_container_width=True)
 
                 with col2:
-                    st.subheader("Forecast Summary")
+                    st.subheader("Forecast Summary", anchor=False)
 
                     st.metric("Forecast Period", f"{forecast_periods} days")
                     st.metric("Method", forecast_method)
@@ -203,7 +194,7 @@ if not monthly_item.empty and not ingredient_df.empty and tracked_ingredients:
                     st.metric("Change vs Historical", f"{change:+.1f}%")
 
                 # Forecast details
-                st.subheader("📋 Detailed Forecast")
+                st.subheader("📋 Detailed Forecast", anchor=False)
 
                 # Create forecast dataframe with MM-DD-YYYY format
                 start_date = datetime.now()
@@ -235,7 +226,7 @@ if not monthly_item.empty and not ingredient_df.empty and tracked_ingredients:
 
                 # Comparison with ensemble methods
                 if forecast_method != "Ensemble (All Methods)":
-                    st.subheader("🔄 Method Comparison")
+                    st.subheader("🔄 Method Comparison", anchor=False)
 
                     with st.expander("Compare with other methods"):
                         # Get all forecasts
@@ -282,7 +273,7 @@ else:
     st.warning("⚠️ No historical data available for forecasting")
 
 # Reorder Predictions
-st.header("🔄 Reorder Predictions")
+st.header("🔄 Reorder Predictions", anchor=False)
 
 if not shipment_df.empty:
     shipment_clean = processor.clean_shipment_data(shipment_df)
@@ -337,7 +328,7 @@ if not shipment_df.empty:
         )
 
     # Show all predictions
-    st.subheader("📅 Complete Reorder Schedule")
+    st.subheader("📅 Complete Reorder Schedule", anchor=False)
 
     st.dataframe(
         reorder_df,
@@ -355,7 +346,7 @@ if not shipment_df.empty:
     )
 
 # What-If Analysis
-st.header("🎲 What-If Scenario Analysis")
+st.header("🎲 What-If Scenario Analysis", anchor=False)
 
 with st.expander("Run What-If Scenarios", expanded=False):
     st.write("**Scenario: Increase in Menu Item Demand**")
@@ -397,7 +388,7 @@ with st.expander("Run What-If Scenarios", expanded=False):
         st.write(f"3. Consider negotiating volume discounts")
 
 # Forecast Accuracy
-st.header("📊 Forecast Accuracy Metrics")
+st.header("📊 Forecast Accuracy Metrics", anchor=False)
 
 st.info("""
 **Understanding Forecast Accuracy:**
