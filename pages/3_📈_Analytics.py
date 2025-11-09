@@ -123,6 +123,10 @@ def calculate_ingredient_consumption(sales_df, recipe_df, ingredient_list):
         for _, sale_row in month_sales.iterrows():
             dish_name = sale_row['Item Name']
             quantity_sold = sale_row['Count']
+            
+            # Skip if dish_name is not a valid string
+            if pd.isna(dish_name) or not isinstance(dish_name, str) or len(dish_name.strip()) == 0:
+                continue
 
             # Find matching recipe
             recipe_match = recipe_clean[recipe_clean['dish_name'].str.contains(dish_name.split()[0], case=False, na=False)]
