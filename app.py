@@ -25,28 +25,70 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
     <style>
-    .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        color: #FF6B6B;
-        text-align: center;
-        padding: 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        text-align: center;
+    /* Banner styling */
+    .banner-container {
+        position: relative;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        padding: 3rem 2rem;
+        border-radius: 1rem;
         margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
     }
+
+    .banner-pattern {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image:
+            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+        background-size: 100% 100%;
+    }
+
+    .banner-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .main-header {
+        font-size: 4rem;
+        font-weight: 900;
+        color: white;
+        text-align: center;
+        padding: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        letter-spacing: 2px;
+        margin: 0;
+    }
+
+    .sub-header {
+        font-size: 1.5rem;
+        color: rgba(255, 255, 255, 0.95);
+        text-align: center;
+        margin-top: 0.5rem;
+        font-weight: 300;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .banner-tagline {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+        text-align: center;
+        margin-top: 1rem;
+        font-style: italic;
+    }
+
     .metric-card {
         background-color: #f0f2f6;
         padding: 1rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #FF6B6B;
+        border-left: 4px solid #667eea;
     }
+
     .stAlert {
         margin-top: 1rem;
     }
@@ -56,9 +98,17 @@ st.markdown("""
 def main():
     """Main application function"""
 
-    # Header
-    st.markdown('<h1 class="main-header">🍜 Mai Shen Yun</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Intelligent Inventory Management Dashboard</p>', unsafe_allow_html=True)
+    # Branded Banner Header
+    st.markdown('''
+    <div class="banner-container">
+        <div class="banner-pattern"></div>
+        <div class="banner-content">
+            <h1 class="main-header">🍜 Mai Shen Yun</h1>
+            <p class="sub-header">Intelligent Inventory Management Dashboard</p>
+            <p class="banner-tagline">Data-Driven Decisions • Real-Time Intelligence • Optimized Operations</p>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
 
     # Initialize data loader
     data_loader = DataLoader()
