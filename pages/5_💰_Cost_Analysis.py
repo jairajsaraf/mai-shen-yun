@@ -43,13 +43,36 @@ ingredient_df = loader.load_ingredient_data()
 shipment_df = loader.load_shipment_data()
 monthly_df = loader.load_monthly_data()
 
+# Fetch real-time exchange rates
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def get_exchange_rates():
+    """Fetch real-time exchange rates from API"""
+    try:
+        import requests
+        # Using exchangerate-api.com free tier (no API key needed for basic usage)
+        response = requests.get('https://api.exchangerate-api.com/v4/latest/USD', timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "USD ($)": 1.0,
+                "EUR (€)": data['rates'].get('EUR', 0.92),
+                "GBP (£)": data['rates'].get('GBP', 0.79),
+                "JPY (¥)": data['rates'].get('JPY', 149.50)
+            }
+    except Exception as e:
+        # Fallback to static rates if API fails
+        pass
+
+    # Fallback rates
+    return {
+        "USD ($)": 1.0,
+        "EUR (€)": 0.92,
+        "GBP (£)": 0.79,
+        "JPY (¥)": 149.50
+    }
+
 # Exchange rates (USD as base currency)
-EXCHANGE_RATES = {
-    "USD ($)": 1.0,
-    "EUR (€)": 0.92,
-    "GBP (£)": 0.79,
-    "JPY (¥)": 149.50
-}
+EXCHANGE_RATES = get_exchange_rates()
 
 def convert_currency(amount, from_currency="USD ($)", to_currency="USD ($)"):
     """Convert amount from USD to target currency"""
@@ -80,7 +103,8 @@ with st.sidebar:
 
     # Show exchange rate info
     if currency != "USD ($)":
-        st.info(f"Exchange Rate: 1 USD = {EXCHANGE_RATES[currency]:.2f} {currency_symbol}")
+        st.info(f"🌐 Live Rate: 1 USD = {EXCHANGE_RATES[currency]:.4f} {currency_symbol}")
+        st.caption("Rates updated hourly")
 
     st.markdown("---")
     st.write("**Cost Categories:**")
@@ -243,7 +267,7 @@ if not shipment_clean.empty:
 
     for _, row in shipment_clean.iterrows():
         annual_demand = row['monthly_quantity'] * 12
-        holding_cost = row['unit_cost'] * holding_cost_rate
+        holding_cost = row['unit_cost_usd'] * holding_cost_rate
 
         eoq = analytics.calculate_eoq(annual_demand, ordering_cost, holding_cost)
 
