@@ -67,6 +67,10 @@ if 'current_menu' not in st.session_state:
 if 'planned_menu' not in st.session_state:
     st.session_state.planned_menu = st.session_state.current_menu.copy()
 
+# Initialize counter for unique keys (to clear multiselects after operations)
+if 'operation_counter' not in st.session_state:
+    st.session_state.operation_counter = 0
+
 # Sidebar - Planning Mode
 with st.sidebar:
     st.header("🎯 Planning Mode", anchor=False)
@@ -113,6 +117,20 @@ if planning_mode == "Menu Builder":
     with col2:
         st.subheader("Planned Menu", anchor=False)
 
+        st.info(f"**{len(st.session_state.planned_menu)} dishes** in planned menu")
+
+        # Display planned menu
+        with st.expander("📋 View Planned Menu Items", expanded=True):
+            if st.session_state.planned_menu:
+                for i, dish in enumerate(st.session_state.planned_menu[:15], 1):
+                    st.write(f"{i}. {dish}")
+                if len(st.session_state.planned_menu) > 15:
+                    st.caption(f"...and {len(st.session_state.planned_menu) - 15} more")
+            else:
+                st.write("No dishes in planned menu")
+
+        st.write("---")
+
         # Add dishes
         available_to_add = [d for d in available_dishes if d not in st.session_state.planned_menu]
 
@@ -120,13 +138,15 @@ if planning_mode == "Menu Builder":
             dishes_to_add = st.multiselect(
                 "➕ Add Dishes",
                 available_to_add,
-                key="dishes_to_add"
+                key=f"dishes_to_add_{st.session_state.operation_counter}"
             )
 
-            if st.button("➕ Add Selected Dishes"):
-                st.session_state.planned_menu.extend(dishes_to_add)
-                st.success(f"Added {len(dishes_to_add)} dishes!")
-                st.rerun()
+            if st.button("➕ Add Selected Dishes", disabled=len(dishes_to_add)==0):
+                if dishes_to_add:
+                    st.session_state.planned_menu.extend(dishes_to_add)
+                    st.session_state.operation_counter += 1
+                    st.success(f"✅ Added {len(dishes_to_add)} dishes!")
+                    st.rerun()
 
         # Remove dishes
         if st.session_state.planned_menu:
@@ -134,14 +154,16 @@ if planning_mode == "Menu Builder":
             dishes_to_remove = st.multiselect(
                 "➖ Remove Dishes",
                 st.session_state.planned_menu,
-                key="dishes_to_remove"
+                key=f"dishes_to_remove_{st.session_state.operation_counter}"
             )
 
-            if st.button("➖ Remove Selected Dishes"):
-                for dish in dishes_to_remove:
-                    st.session_state.planned_menu.remove(dish)
-                st.success(f"Removed {len(dishes_to_remove)} dishes!")
-                st.rerun()
+            if st.button("➖ Remove Selected Dishes", disabled=len(dishes_to_remove)==0):
+                if dishes_to_remove:
+                    for dish in dishes_to_remove:
+                        st.session_state.planned_menu.remove(dish)
+                    st.session_state.operation_counter += 1
+                    st.success(f"✅ Removed {len(dishes_to_remove)} dishes!")
+                    st.rerun()
 
         st.write("---")
 
@@ -149,12 +171,15 @@ if planning_mode == "Menu Builder":
         with col_a:
             if st.button("🔄 Reset to Current"):
                 st.session_state.planned_menu = st.session_state.current_menu.copy()
+                st.session_state.operation_counter += 1
+                st.success("↺ Reset to current menu!")
                 st.rerun()
 
         with col_b:
             if st.button("✅ Apply Changes"):
                 st.session_state.current_menu = st.session_state.planned_menu.copy()
-                st.success("Menu updated!")
+                st.session_state.operation_counter += 1
+                st.success("✅ Menu updated!")
                 st.rerun()
 
     st.markdown("---")
@@ -203,43 +228,69 @@ if planning_mode == "Menu Builder":
         comp_df = comparison['comparison_df']
 
         if not comp_df.empty:
-            # Highlight significant changes
-            significant_changes = comp_df[abs(comp_df['change_pct']) > 10].sort_values('change', ascending=False)
+            # Show all changes, sorted by absolute change
+            all_changes = comp_df[abs(comp_df['change']) > 0.1].sort_values('change', key=abs, ascending=False)
 
-            if not significant_changes.empty:
-                # Create visualization
+            if not all_changes.empty:
+                st.success(f"📊 Showing changes for {len(all_changes)} ingredients")
+
+                # Create visualization for top 10 changes
+                top_changes = all_changes.head(10)
+
                 fig = go.Figure()
 
                 fig.add_trace(go.Bar(
-                    name='Current',
-                    y=significant_changes['ingredient'],
-                    x=significant_changes['monthly_requirement_current'],
+                    name='Current Menu',
+                    y=top_changes['ingredient'],
+                    x=top_changes['monthly_requirement_current'],
                     orientation='h',
-                    marker_color='lightblue'
+                    marker_color='#4ECDC4',
+                    text=top_changes['monthly_requirement_current'].round(0),
+                    textposition='inside'
                 ))
 
                 fig.add_trace(go.Bar(
-                    name='Planned',
-                    y=significant_changes['ingredient'],
-                    x=significant_changes['monthly_requirement_planned'],
+                    name='Planned Menu',
+                    y=top_changes['ingredient'],
+                    x=top_changes['monthly_requirement_planned'],
                     orientation='h',
-                    marker_color='lightcoral'
+                    marker_color='#FF6B6B',
+                    text=top_changes['monthly_requirement_planned'].round(0),
+                    textposition='inside'
                 ))
 
                 fig.update_layout(
-                    title="Ingredient Requirements: Current vs Planned",
-                    xaxis_title="Monthly Requirement",
+                    title="Top 10 Ingredient Requirement Changes: Current vs Planned",
+                    xaxis_title="Monthly Requirement (units)",
                     yaxis_title="Ingredient",
                     barmode='group',
                     template="plotly_white",
-                    height=400
+                    height=400,
+                    showlegend=True
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
 
+                # Quick summary
+                increases = all_changes[all_changes['change'] > 0]
+                decreases = all_changes[all_changes['change'] < 0]
+
+                col_summary1, col_summary2 = st.columns(2)
+                with col_summary1:
+                    if not increases.empty:
+                        st.info(f"📈 **Increases:** {len(increases)} ingredients need more")
+                        for _, row in increases.head(3).iterrows():
+                            st.write(f"  • {row['ingredient']}: +{row['change']:.0f} units (+{row['change_pct']:.0f}%)")
+
+                with col_summary2:
+                    if not decreases.empty:
+                        st.info(f"📉 **Decreases:** {len(decreases)} ingredients need less")
+                        for _, row in decreases.head(3).iterrows():
+                            st.write(f"  • {row['ingredient']}: {row['change']:.0f} units ({row['change_pct']:.0f}%)")
+
                 # Detailed table
-                with st.expander("📋 View Detailed Changes"):
-                    display_df = significant_changes[['ingredient', 'monthly_requirement_current', 'monthly_requirement_planned', 'change', 'change_pct']].copy()
+                with st.expander("📋 View Complete Ingredient Changes"):
+                    display_df = all_changes[['ingredient', 'monthly_requirement_current', 'monthly_requirement_planned', 'change', 'change_pct']].copy()
                     display_df.columns = ['Ingredient', 'Current Need', 'Planned Need', 'Change', 'Change %']
 
                     # Format columns
@@ -250,7 +301,7 @@ if planning_mode == "Menu Builder":
 
                     st.dataframe(display_df, use_container_width=True, hide_index=True)
             else:
-                st.info("No significant ingredient changes (>10%)")
+                st.info("ℹ️ No ingredient changes detected - menus are identical")
 
         # Availability check
         st.markdown("---")
