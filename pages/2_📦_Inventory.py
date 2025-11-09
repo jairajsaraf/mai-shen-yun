@@ -20,16 +20,7 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Inventory - Mai Shen Yun", page_icon="📦", layout="wide")
 
-# Hide anchor links
-st.markdown("""
-    <style>
-    .stHeadingContainer a {
-        display: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("📦 Inventory Management")
+st.title("📦 Inventory Management", anchor=False)
 st.markdown("---")
 
 # Initialize
@@ -44,7 +35,7 @@ shipment_df = loader.load_shipment_data()
 
 # Sidebar filters
 with st.sidebar:
-    st.header("🔍 Filters")
+    st.header("🔍 Filters", anchor=False)
 
     # Filter by shipment frequency
     if not shipment_df.empty and 'frequency' in shipment_df.columns:
@@ -111,7 +102,7 @@ if status_filter:
     filtered_df = filtered_df[filtered_df['status'].isin(status_filter)]
 
 # Summary metrics
-st.header("📊 Inventory Summary")
+st.header("📊 Inventory Summary", anchor=False)
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -134,7 +125,7 @@ if not filtered_df.empty:
         viz.create_kpi_card("Overstock", str(overstock), delta=None, delta_color="off")
 
 # Alerts
-st.header("🚨 Inventory Alerts")
+st.header("🚨 Inventory Alerts", anchor=False)
 
 if not filtered_df.empty:
     # Critical low stock
@@ -168,7 +159,7 @@ if not filtered_df.empty:
             )
 
 # Inventory visualization
-st.header("📊 Current Inventory Levels")
+st.header("📊 Current Inventory Levels", anchor=False)
 
 if not filtered_df.empty:
     col1, col2 = st.columns([3, 1])
@@ -179,7 +170,7 @@ if not filtered_df.empty:
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("Status Distribution")
+        st.subheader("Status Distribution", anchor=False)
         status_counts = filtered_df['status'].value_counts()
 
         for status, count in status_counts.items():
@@ -191,7 +182,7 @@ if not filtered_df.empty:
                 st.success(f"🟢 {status}: {count}")
 
 # Detailed inventory table
-st.header("📋 Detailed Inventory")
+st.header("📋 Detailed Inventory", anchor=False)
 
 if not filtered_df.empty:
     # Add search
@@ -239,7 +230,7 @@ if not filtered_df.empty:
     )
 
 # Reorder recommendations
-st.header("🔄 Reorder Recommendations")
+st.header("🔄 Reorder Recommendations", anchor=False)
 
 if not filtered_df.empty:
     # Items needing reorder
@@ -273,7 +264,7 @@ if not filtered_df.empty:
         st.success("✅ All inventory levels are adequate. No immediate reorders needed.")
 
 # Inventory metrics
-st.header("📈 Inventory Metrics")
+st.header("📈 Inventory Metrics", anchor=False)
 
 col1, col2, col3 = st.columns(3)
 

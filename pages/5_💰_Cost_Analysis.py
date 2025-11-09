@@ -20,16 +20,7 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Cost Analysis - Mai Shen Yun", page_icon="💰", layout="wide")
 
-# Hide anchor links
-st.markdown("""
-    <style>
-    .stHeadingContainer a {
-        display: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("💰 Cost Analysis & Optimization")
+st.title("💰 Cost Analysis & Optimization", anchor=False)
 st.markdown("---")
 
 # Initialize
@@ -85,14 +76,14 @@ def convert_currency(amount, from_currency="USD ($)", to_currency="USD ($)"):
 
 # Sidebar
 with st.sidebar:
-    st.header("💵 Cost Settings")
+    st.header("💵 Cost Settings", anchor=False)
 
     # Currency
     currency = st.selectbox("Currency", ["USD ($)", "EUR (€)", "GBP (£)", "JPY (¥)"], index=0)
     currency_symbol = currency.split("(")[1].split(")")[0]
 
     # Default unit costs (these would come from a database in production)
-    st.subheader("Unit Cost Settings")
+    st.subheader("Unit Cost Settings", anchor=False)
     st.info("💡 Adjust unit costs to reflect your actual procurement prices")
 
     # Time period for analysis
@@ -114,7 +105,7 @@ with st.sidebar:
     st.write("- Waste Costs")
 
 # Cost Overview
-st.header("📊 Cost Overview")
+st.header("📊 Cost Overview", anchor=False)
 
 # Period multiplier for analysis
 period_multiplier = 1 if analysis_period == "Monthly" else 3 if analysis_period == "Quarterly" else 12
@@ -172,7 +163,7 @@ if not shipment_df.empty:
         )
 
     # Cost breakdown by ingredient
-    st.header("💵 Cost Breakdown")
+    st.header("💵 Cost Breakdown", anchor=False)
 
     col1, col2 = st.columns([2, 1])
 
@@ -204,7 +195,7 @@ if not shipment_df.empty:
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("Cost Statistics")
+        st.subheader("Cost Statistics", anchor=False)
 
         st.metric("Total", f"{currency_symbol}{total_period_cost:,.2f}")
         st.metric("Median", f"{currency_symbol}{shipment_clean['period_cost_converted'].median():,.2f}")
@@ -215,7 +206,7 @@ if not shipment_df.empty:
         st.write(f"**Above average cost:** {high_cost} items")
 
     # Cost by frequency
-    st.subheader("📦 Cost by Shipment Frequency")
+    st.subheader("📦 Cost by Shipment Frequency", anchor=False)
 
     freq_cost = shipment_clean.groupby('frequency')['period_cost_converted'].sum().reset_index()
     freq_cost.columns = ['Frequency', 'Total Cost']
@@ -249,11 +240,11 @@ if not shipment_df.empty:
         )
 
 # Cost Optimization Opportunities
-st.header("🎯 Cost Optimization Opportunities")
+st.header("🎯 Cost Optimization Opportunities", anchor=False)
 
 if not shipment_clean.empty:
     # Calculate EOQ for each item
-    st.subheader("📉 Economic Order Quantity (EOQ) Analysis")
+    st.subheader("📉 Economic Order Quantity (EOQ) Analysis", anchor=False)
 
     st.info("""
     **EOQ** helps determine the optimal order quantity that minimizes total inventory costs (ordering + holding costs).
@@ -305,7 +296,7 @@ if not shipment_clean.empty:
 
 # Cost trends (if monthly data available)
 if not monthly_df.empty:
-    st.header("📈 Cost Trends Over Time")
+    st.header("📈 Cost Trends Over Time", anchor=False)
 
     monthly_clean = processor.process_monthly_sales(monthly_df)
 
@@ -366,7 +357,7 @@ if not monthly_df.empty:
         st.plotly_chart(fig_trend, use_container_width=True)
 
         # Cost variance analysis
-        st.subheader("📊 Cost Variance")
+        st.subheader("📊 Cost Variance", anchor=False)
 
         col1, col2, col3 = st.columns(3)
 
@@ -385,7 +376,7 @@ if not monthly_df.empty:
             st.metric(f"Lowest ({min_period})", f"{currency_symbol}{min_cost:,.2f}")
 
 # Waste & Spoilage Analysis
-st.header("🗑️ Waste & Spoilage Analysis")
+st.header("🗑️ Waste & Spoilage Analysis", anchor=False)
 
 # How to use explanation
 st.info("""
@@ -443,7 +434,7 @@ with st.expander("View Waste Analysis", expanded=False):
         st.write("- Consider smaller, more frequent orders for perishables")
 
 # ROI Calculator
-st.header("💎 ROI Calculator")
+st.header("💎 ROI Calculator", anchor=False)
 
 # How to use explanation
 st.info("""
@@ -471,13 +462,13 @@ with st.expander("Calculate ROI for Inventory Improvements", expanded=True):
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Investment")
+        st.subheader("Investment", anchor=False)
         software_cost = st.number_input(f"Software/System Cost ({currency_symbol})", value=5000, step=100)
         training_cost = st.number_input(f"Training Cost ({currency_symbol})", value=1000, step=100)
         total_investment = software_cost + training_cost
 
     with col2:
-        st.subheader("Expected Benefits")
+        st.subheader("Expected Benefits", anchor=False)
         waste_reduction = st.slider("Waste Reduction (%)", 0, 50, 20)
         efficiency_gain = st.slider("Efficiency Gain (%)", 0, 50, 15)
 
@@ -488,7 +479,7 @@ with st.expander("Calculate ROI for Inventory Improvements", expanded=True):
     roi = ((annual_savings - total_investment) / total_investment) * 100 if total_investment > 0 else 0
     payback_months = (total_investment / (annual_savings / 12)) if annual_savings > 0 else 0
 
-    st.subheader("📊 ROI Results")
+    st.subheader("📊 ROI Results", anchor=False)
 
     col1, col2, col3 = st.columns(3)
 

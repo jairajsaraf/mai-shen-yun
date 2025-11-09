@@ -20,16 +20,7 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Analytics - Mai Shen Yun", page_icon="📈", layout="wide")
 
-# Hide anchor links
-st.markdown("""
-    <style>
-    .stHeadingContainer a {
-        display: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("📈 Advanced Analytics")
+st.title("📈 Advanced Analytics", anchor=False)
 st.markdown("---")
 
 # Initialize
@@ -52,7 +43,7 @@ tracked_ingredients = shipment_clean['ingredient'].tolist() if not shipment_clea
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Analysis Settings")
+    st.header("⚙️ Analysis Settings", anchor=False)
 
     analysis_type = st.selectbox(
         "Analysis Type",
@@ -147,7 +138,7 @@ def calculate_ingredient_consumption(sales_df, recipe_df, ingredient_list):
 
 # Ingredient Usage Trends Analysis
 if analysis_type == "Ingredient Usage Trends":
-    st.header("📊 Ingredient Usage Trends Over Time")
+    st.header("📊 Ingredient Usage Trends Over Time", anchor=False)
 
     if not monthly_item.empty and not ingredient_df.empty:
         # Calculate ingredient consumption from sales
@@ -195,7 +186,7 @@ if analysis_type == "Ingredient Usage Trends":
                         st.plotly_chart(fig, use_container_width=True)
 
                     with col2:
-                        st.subheader("Statistics")
+                        st.subheader("Statistics", anchor=False)
 
                         ingredient_data = consumption_df[selected_ingredient]
 
@@ -210,7 +201,7 @@ if analysis_type == "Ingredient Usage Trends":
                             st.write(f"**Trend:** {trend}")
 
                 # Top ingredients by total usage
-                st.subheader("🔝 Top Ingredients by Total Usage")
+                st.subheader("🔝 Top Ingredients by Total Usage", anchor=False)
 
                 total_usage = consumption_df[tracked_ingredients].sum().sort_values(ascending=False)
 
@@ -259,10 +250,10 @@ if analysis_type == "Ingredient Usage Trends":
 
 # Shipment Analysis
 elif analysis_type == "Shipment Analysis":
-    st.header("📦 Shipment Analysis")
+    st.header("📦 Shipment Analysis", anchor=False)
 
     if not shipment_clean.empty:
-        st.subheader("Shipment Frequency Distribution")
+        st.subheader("Shipment Frequency Distribution", anchor=False)
 
         col1, col2 = st.columns([2, 1])
 
@@ -295,7 +286,7 @@ elif analysis_type == "Shipment Analysis":
                 st.metric(freq.title(), f"{count} ingredients")
 
         # Detailed shipment table
-        st.subheader("📋 Detailed Shipment Information")
+        st.subheader("📋 Detailed Shipment Information", anchor=False)
 
         display_df = shipment_clean[['ingredient', 'quantity_per_shipment', 'unit', 'num_shipments', 'frequency']].copy()
         display_df.columns = ['Ingredient', 'Qty per Shipment', 'Unit', 'Shipments/Month', 'Frequency']
@@ -308,7 +299,7 @@ elif analysis_type == "Shipment Analysis":
 
 # Top/Bottom Performers
 elif analysis_type == "Top/Bottom Performers":
-    st.header("🏆 Top & Bottom Performing Ingredients")
+    st.header("🏆 Top & Bottom Performing Ingredients", anchor=False)
 
     if not monthly_item.empty and not ingredient_df.empty:
         # Calculate ingredient consumption
@@ -320,7 +311,7 @@ elif analysis_type == "Top/Bottom Performers":
             col1, col2 = st.columns(2)
 
             with col1:
-                st.subheader("🥇 Top 5 Performers")
+                st.subheader("🥇 Top 5 Performers", anchor=False)
                 top_5 = total_usage.head(5)
 
                 for i, (ing, usage) in enumerate(top_5.items(), 1):
@@ -328,7 +319,7 @@ elif analysis_type == "Top/Bottom Performers":
                     st.write(f"{emoji} **{ing}**: {usage:.0f} units")
 
             with col2:
-                st.subheader("📉 Bottom 5 Performers")
+                st.subheader("📉 Bottom 5 Performers", anchor=False)
                 bottom_5 = total_usage.tail(5).sort_values(ascending=True)
 
                 for ing, usage in bottom_5.items():
@@ -350,7 +341,7 @@ elif analysis_type == "Top/Bottom Performers":
 
 # Frequency Analysis
 elif analysis_type == "Frequency Analysis":
-    st.header("⏱️ Shipment Frequency Analysis")
+    st.header("⏱️ Shipment Frequency Analysis", anchor=False)
 
     if not shipment_clean.empty:
         # Group by frequency
@@ -397,7 +388,7 @@ elif analysis_type == "Frequency Analysis":
 
 # Export analytics
 st.markdown("---")
-st.header("📥 Export Analytics")
+st.header("📥 Export Analytics", anchor=False)
 
 col1, col2 = st.columns(2)
 
