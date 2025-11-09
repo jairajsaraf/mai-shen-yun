@@ -82,34 +82,6 @@ st.markdown(f"""
         z-index: 1;
     }}
 
-    .main-header {{
-        font-size: 4rem;
-        font-weight: 900;
-        color: {TITLE_COLOR};
-        text-align: center;
-        padding: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        letter-spacing: 2px;
-        margin: 0;
-    }}
-
-    .sub-header {{
-        font-size: 1.5rem;
-        color: rgba(255, 255, 255, 0.95);
-        text-align: center;
-        margin-top: 0.5rem;
-        font-weight: 300;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
-    }}
-
-    .banner-tagline {{
-        font-size: 1rem;
-        color: rgba(255, 255, 255, 0.9);
-        text-align: center;
-        margin-top: 1rem;
-        font-style: italic;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
-    }}
 
     .metric-card {{
         background-color: #f0f2f6;
@@ -132,9 +104,6 @@ def main():
     <div class="banner-container">
         <div class="banner-overlay"></div>
         <div class="banner-content">
-            <h1 class="main-header">🍜 Mai Shen Yun</h1>
-            <p class="sub-header">Intelligent Inventory Management Dashboard</p>
-            <p class="banner-tagline">Data-Driven Decisions • Real-Time Intelligence • Optimized Operations</p>
         </div>
     </div>
     ''', unsafe_allow_html=True)
