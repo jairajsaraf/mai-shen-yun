@@ -20,6 +20,15 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Analytics - Mai Shen Yun", page_icon="📈", layout="wide")
 
+# Hide anchor links
+st.markdown("""
+    <style>
+    .stHeadingContainer a {
+        display: none;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📈 Advanced Analytics")
 st.markdown("---")
 

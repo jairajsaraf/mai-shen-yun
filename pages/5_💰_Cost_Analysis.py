@@ -20,6 +20,15 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Cost Analysis - Mai Shen Yun", page_icon="💰", layout="wide")
 
+# Hide anchor links
+st.markdown("""
+    <style>
+    .stHeadingContainer a {
+        display: none;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("💰 Cost Analysis & Optimization")
 st.markdown("---")
 

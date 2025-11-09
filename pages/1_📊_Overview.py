@@ -19,6 +19,15 @@ from visualizations import InventoryVisualizations
 # Page config
 st.set_page_config(page_title="Overview - Mai Shen Yun", page_icon="📊", layout="wide")
 
+# Hide anchor links
+st.markdown("""
+    <style>
+    .stHeadingContainer a {
+        display: none;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📊 Executive Overview")
 st.markdown("---")
 
@@ -31,68 +40,112 @@ viz = InventoryVisualizations()
 # Load data
 ingredient_df = loader.load_ingredient_data()
 shipment_df = loader.load_shipment_data()
-monthly_df = loader.load_monthly_data()
+
+# Load all 3 sheets from monthly data
+all_sheets = loader.load_all_sheets()
+monthly_group = all_sheets['group']
+monthly_category = all_sheets['category']
+monthly_item = all_sheets['item']
 
 # KPIs Section
 st.header("🎯 Key Performance Indicators")
 
 col1, col2, col3, col4 = st.columns(4)
 
-# Calculate metrics
+# Calculate metrics from actual data
 total_ingredients = len(shipment_df) if not shipment_df.empty else 0
 total_dishes = len(ingredient_df) if not ingredient_df.empty else 0
 months_tracked = len(loader.get_available_months())
 
+# Calculate total sales from item data
+total_sales = 0
+total_revenue = 0.0
+
+if not monthly_item.empty:
+    # Convert Count column to numeric (handle string values)
+    if 'Count' in monthly_item.columns:
+        monthly_item['Count'] = pd.to_numeric(monthly_item['Count'], errors='coerce').fillna(0)
+        total_sales = int(monthly_item['Count'].sum())
+    
+    # Clean and convert Amount column
+    if 'Amount' in monthly_item.columns:
+        # Clean amount column (remove $ and commas)
+        monthly_item['Amount_Clean'] = pd.to_numeric(
+            monthly_item['Amount'].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False),
+            errors='coerce'
+        ).fillna(0.0)
+        total_revenue = float(monthly_item['Amount_Clean'].sum())
+
 with col1:
     viz.create_kpi_card(
-        "Total Ingredients",
-        f"{total_ingredients}",
+        "Total Orders",
+        f"{total_sales:,}",
         delta=None
     )
 
 with col2:
     viz.create_kpi_card(
-        "Menu Items",
-        f"{total_dishes}",
+        "Total Revenue",
+        f"${total_revenue:,.2f}",
         delta=None
     )
 
 with col3:
     viz.create_kpi_card(
-        "Months Tracked",
-        f"{months_tracked}",
+        "Tracked Ingredients",
+        str(total_ingredients),
         delta=None
     )
 
 with col4:
-    # Calculate total shipments
-    total_shipments = shipment_df['num_shipments'].sum() if not shipment_df.empty and 'num_shipments' in shipment_df.columns else 0
     viz.create_kpi_card(
-        "Total Shipments",
-        f"{total_shipments}",
+        "Months Tracked",
+        str(months_tracked),
         delta=None
     )
 
 st.markdown("---")
 
-# Alerts Section
-st.header("🚨 Critical Alerts")
+# Monthly Data Sheet Info
+st.header("📊 Data Sheet Structure")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.warning("⚠️ **Inventory Alerts**")
-    st.write("- Recommend implementing real-time stock tracking")
-    st.write("- Set up automated reorder points")
-    st.write("- Monitor high-frequency items closely")
+    st.info(f"""
+    **Sheet 1: Group Level**
+    - Records: {len(monthly_group)}
+    - Aggregated sales by group
+    """)
+    if not monthly_group.empty and 'Group' in monthly_group.columns:
+        unique_groups = monthly_group['Group'].unique()
+        st.write("**Groups:**")
+        for g in unique_groups:
+            st.write(f"- {g}")
 
 with col2:
-    st.success("✅ **System Status**")
-    st.write(f"- {total_ingredients} ingredients monitored")
-    st.write(f"- {total_dishes} dishes in menu")
-    st.write(f"- Data from {months_tracked} months loaded")
+    st.info(f"""
+    **Sheet 2: Category Level**
+    - Records: {len(monthly_category)}
+    - Sales by food category
+    """)
+    if not monthly_category.empty and 'Category' in monthly_category.columns:
+        unique_cats = monthly_category['Category'].unique()
+        st.write(f"**{len(unique_cats)} categories tracked**")
 
-# Shipment Frequency Analysis
+with col3:
+    st.info(f"""
+    **Sheet 3: Item Level**
+    - Records: {len(monthly_item)}
+    - Individual dish sales
+    """)
+    if not monthly_item.empty and 'Item Name' in monthly_item.columns:
+        unique_items = monthly_item['Item Name'].nunique()
+        st.write(f"**{unique_items} unique items**")
+
+st.markdown("---")
+
+# Shipment Overview
 if not shipment_df.empty:
     st.header("📦 Shipment Overview")
 
@@ -113,86 +166,220 @@ if not shipment_df.empty:
             for freq, count in freq_counts.items():
                 st.metric(freq.title(), f"{count} items")
 
-# Top Ingredients
-if not ingredient_df.empty:
-    st.header("🔝 Menu Analysis")
+st.markdown("---")
 
-    # Clean data
-    ingredient_clean = processor.clean_ingredient_data(ingredient_df)
+# Top Selling Dishes with Ranking
+if not monthly_item.empty:
+    st.header("🏆 Top Selling Dishes (Ranked)")
 
-    # Count ingredients used in each dish
-    if 'dish_name' in ingredient_clean.columns:
-        st.subheader("Popular Dishes")
+    # Aggregate sales across all months
+    if 'Item Name' in monthly_item.columns and 'Count' in monthly_item.columns:
+        # Ensure Count is numeric
+        monthly_item['Count'] = pd.to_numeric(monthly_item['Count'], errors='coerce').fillna(0)
+        
+        # Group by item and sum counts and revenue
+        agg_dict = {'Count': 'sum'}
+        if 'Amount_Clean' in monthly_item.columns:
+            agg_dict['Amount_Clean'] = 'sum'
+        
+        dish_sales = monthly_item.groupby('Item Name').agg(agg_dict).sort_values('Count', ascending=False)
 
-        # Display top dishes
-        dish_sample = ingredient_clean['dish_name'].head(10)
+        st.subheader("📈 Sales Rankings")
 
-        col1, col2 = st.columns(2)
+        # Create ranking dataframe (Top 20)
+        top_20 = dish_sales.head(20)
+        ranking_data = {
+            'Rank': list(range(1, len(top_20) + 1)),
+            'Dish Name': top_20.index.tolist(),
+            'Total Orders': [int(x) for x in top_20['Count'].values],
+        }
+        
+        if 'Amount_Clean' in top_20.columns:
+            ranking_data['Revenue'] = [f"${float(x):,.2f}" for x in top_20['Amount_Clean'].values]
+        
+        ranking_df = pd.DataFrame(ranking_data)
+
+        col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.write("**Sample Menu Items:**")
-            for dish in dish_sample[:5]:
-                st.write(f"- {dish}")
+            # Display as styled table with highlighting
+            st.dataframe(
+                ranking_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Rank": st.column_config.NumberColumn("🏅 Rank", width="small"),
+                    "Dish Name": st.column_config.TextColumn("Dish Name", width="large"),
+                    "Total Orders": st.column_config.NumberColumn("📦 Orders", format="%d"),
+                    "Revenue": st.column_config.TextColumn("💰 Revenue", width="medium") if 'Revenue' in ranking_data else None
+                }
+            )
 
         with col2:
-            st.write("**More Items:**")
-            for dish in dish_sample[5:10]:
-                st.write(f"- {dish}")
+            st.subheader("📊 Summary")
+            st.metric("Total Dishes", len(dish_sales))
+            st.metric("Total Orders", f"{int(dish_sales['Count'].sum()):,}")
 
-# Monthly Data Overview
-if not monthly_df.empty:
-    st.header("📅 Monthly Data Summary")
+            if 'Amount_Clean' in dish_sales.columns:
+                avg_rev = float(dish_sales['Amount_Clean'].mean())
+                st.metric("Avg Revenue/Dish", f"${avg_rev:,.2f}")
 
-    months = loader.get_available_months()
+            st.markdown("---")
 
-    col1, col2, col3 = st.columns(3)
+            # Top 3 highlight
+            st.write("**🥇 Top 3:**")
+            for i, (dish, row) in enumerate(dish_sales.head(3).iterrows(), 1):
+                emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉"
+                st.write(f"{emoji} **{dish}**")
+                st.write(f"   {int(row['Count']):,} orders")
 
-    with col1:
-        st.info(f"**Earliest Month:** {months[0] if months else 'N/A'}")
+        # Bottom 10 performers
+        with st.expander("📉 View Bottom 10 Performers"):
+            bottom_10 = dish_sales.tail(10).sort_values('Count', ascending=True)
 
-    with col2:
-        st.info(f"**Latest Month:** {months[-1] if months else 'N/A'}")
+            bottom_data = {
+                'Dish Name': bottom_10.index.tolist(),
+                'Total Orders': [int(x) for x in bottom_10['Count'].values],
+            }
+            
+            if 'Amount_Clean' in bottom_10.columns:
+                bottom_data['Revenue'] = [f"${float(x):,.2f}" for x in bottom_10['Amount_Clean'].values]
+            
+            bottom_df = pd.DataFrame(bottom_data)
 
-    with col3:
-        st.info(f"**Total Records:** {len(monthly_df)}")
+            st.dataframe(
+                bottom_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.info("💡 Consider promoting or reviewing these items to increase sales")
+
+st.markdown("---")
+
+# Category Performance
+if not monthly_category.empty:
+    st.header("🍜 Category Performance")
+
+    if 'Category' in monthly_category.columns and 'Count' in monthly_category.columns:
+        # Ensure Count is numeric
+        monthly_category['Count'] = pd.to_numeric(monthly_category['Count'], errors='coerce').fillna(0)
+        
+        category_sales = monthly_category.groupby('Category')['Count'].sum().sort_values(ascending=False)
+
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            # Create horizontal bar chart
+            import plotly.graph_objects as go
+
+            top_10_cats = category_sales.head(10)
+            
+            fig = go.Figure(data=[
+                go.Bar(
+                    y=top_10_cats.index.tolist(),
+                    x=[float(x) for x in top_10_cats.values],
+                    orientation='h',
+                    marker_color='#4ECDC4',
+                    text=[int(x) for x in top_10_cats.values],
+                    textposition='auto',
+                )
+            ])
+
+            fig.update_layout(
+                title="Top 10 Categories by Orders",
+                xaxis_title="Total Orders",
+                yaxis_title="Category",
+                template="plotly_white",
+                height=400
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            st.subheader("Category Stats")
+            st.metric("Total Categories", len(category_sales))
+            st.metric("Top Category", str(category_sales.index[0]))
+            st.metric("Top Category Orders", f"{int(category_sales.values[0]):,}")
+
+st.markdown("---")
+
+# Alerts Section
+st.header("🚨 System Alerts & Insights")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.info("✅ **Data Status**")
+    st.write(f"- ✅ {total_ingredients} ingredients tracked")
+    st.write(f"- ✅ {total_dishes} dishes in recipe database")
+    st.write(f"- ✅ {months_tracked} months of sales data")
+    st.write(f"- ✅ {total_sales:,} total orders processed")
+
+with col2:
+    st.warning("ℹ️ **Important Notes**")
+    st.write("- 18 ingredients in recipes vs 14 in shipments")
+    st.write("- Some ingredients may be combined in shipments")
+    st.write("- Monthly data has 3 levels: Group, Category, Item")
+    st.write("- Use Analytics page for deeper insights")
 
 # Recommendations
-st.header("💡 Recommendations")
+st.header("💡 Executive Recommendations")
 
 with st.expander("View Actionable Insights", expanded=True):
     st.markdown("""
     ### Immediate Actions
-    1. **Set up reorder points** for all ingredients based on usage patterns
-    2. **Implement safety stock** for high-frequency ingredients (weekly shipments)
-    3. **Review** items with monthly shipments for potential cost savings
+    1. **Focus on Top Performers**: The top 3 dishes generate significant revenue - ensure adequate ingredient inventory
+    2. **Review Bottom Performers**: Consider menu optimization for low-selling items
+    3. **Category Analysis**: Use category performance data to guide marketing efforts
 
     ### Strategic Initiatives
-    1. **Demand Forecasting**: Use historical data to predict future needs
-    2. **ABC Analysis**: Classify ingredients by value and prioritize management
-    3. **Supplier Optimization**: Negotiate better terms for high-volume items
+    1. **Demand Forecasting**: Leverage 6 months of historical data for better predictions
+    2. **Inventory Optimization**: Align ingredient shipments with actual dish popularity
+    3. **Cost Analysis**: Review ingredient costs for top-selling items to maximize margins
 
-    ### Cost Optimization
-    1. Identify slow-moving ingredients to reduce carrying costs
-    2. Consolidate shipments where possible
-    3. Implement just-in-time ordering for non-perishables
+    ### Data Quality
+    1. **Ingredient Mapping**: Reconcile 18-ingredient recipes with 14-shipment tracking
+    2. **Regular Updates**: Maintain consistent data collection across all sheets
+    3. **Integration**: Consider POS integration for real-time data
     """)
 
-# Data Quality Check
-st.header("✅ Data Quality")
+# Monthly trends snapshot
+if not monthly_group.empty:
+    st.header("📅 Monthly Performance Snapshot")
 
-col1, col2, col3 = st.columns(3)
+    # Clean Amount column if it exists
+    if 'Amount' in monthly_group.columns:
+        if 'Amount_Clean' not in monthly_group.columns:
+            monthly_group['Amount_Clean'] = pd.to_numeric(
+                monthly_group['Amount'].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False),
+                errors='coerce'
+            ).fillna(0.0)
+    
+    if 'month' in monthly_group.columns and 'Amount_Clean' in monthly_group.columns:
+        monthly_revenue = monthly_group.groupby('month')['Amount_Clean'].sum()
 
-with col1:
-    status = "✅ Good" if not ingredient_df.empty else "❌ Missing"
-    st.metric("Ingredient Data", status)
+        import plotly.graph_objects as go
 
-with col2:
-    status = "✅ Good" if not shipment_df.empty else "❌ Missing"
-    st.metric("Shipment Data", status)
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=monthly_revenue.index.tolist(),
+            y=[float(x) for x in monthly_revenue.values],
+            mode='lines+markers',
+            name='Revenue',
+            line=dict(color='#FF6B6B', width=3),
+            marker=dict(size=10)
+        ))
 
-with col3:
-    status = "✅ Good" if not monthly_df.empty else "⚠️ Limited"
-    st.metric("Monthly Data", status)
+        fig.update_layout(
+            title="Monthly Revenue Trend",
+            xaxis_title="Month",
+            yaxis_title="Revenue ($)",
+            template="plotly_white",
+            height=350
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
 
 # Footer
 st.markdown("---")
