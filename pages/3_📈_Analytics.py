@@ -1,6 +1,6 @@
 """
 Analytics Page
-Trend analysis and business intelligence
+Trend analysis and business intelligence for the 14 tracked ingredients
 """
 
 import streamlit as st
@@ -39,9 +39,16 @@ analytics = InventoryAnalytics()
 viz = InventoryVisualizations()
 
 # Load data
-ingredient_df = loader.load_ingredient_data()
-shipment_df = loader.load_shipment_data()
-monthly_df = loader.load_monthly_data()
+ingredient_df = loader.load_ingredient_data()  # Recipe data
+shipment_df = loader.load_shipment_data()  # 14 tracked ingredients
+
+# Load all sheets
+all_sheets = loader.load_all_sheets()
+monthly_item = all_sheets['item']  # Item-level sales data
+
+# Clean shipment data to get the 14 ingredient names
+shipment_clean = processor.clean_shipment_data(shipment_df)
+tracked_ingredients = shipment_clean['ingredient'].tolist() if not shipment_clean.empty else []
 
 # Sidebar
 with st.sidebar:
@@ -49,10 +56,10 @@ with st.sidebar:
 
     analysis_type = st.selectbox(
         "Analysis Type",
-        ["Usage Trends", "Seasonal Patterns", "ABC Classification", "Correlation Analysis"]
+        ["Ingredient Usage Trends", "Shipment Analysis", "Top/Bottom Performers", "Frequency Analysis"]
     )
 
-    if not monthly_df.empty:
+    if not monthly_item.empty:
         months = loader.get_available_months()
         selected_months = st.multiselect(
             "Select Months",
@@ -63,263 +70,326 @@ with st.sidebar:
         selected_months = []
 
     st.markdown("---")
-    st.info("📊 Select different analysis types to explore your data")
+    st.info(f"📊 Analyzing {len(tracked_ingredients)} tracked ingredients")
 
-# Usage Trends Analysis
-if analysis_type == "Usage Trends":
-    st.header("📊 Usage Trends Over Time")
+# Calculate ingredient usage from sales data
+def calculate_ingredient_consumption(sales_df, recipe_df, ingredient_list):
+    """
+    Calculate ingredient consumption based on dish sales and recipes
+    Returns: DataFrame with ingredient consumption per month
+    """
+    if sales_df.empty or recipe_df.empty:
+        return pd.DataFrame()
 
-    if not monthly_df.empty:
-        # Process monthly data
-        monthly_clean = processor.process_monthly_sales(monthly_df)
+    # Ensure Count is numeric
+    if 'Count' in sales_df.columns:
+        sales_df['Count'] = pd.to_numeric(sales_df['Count'], errors='coerce').fillna(0)
 
-        # Filter by selected months
-        if selected_months and 'month' in monthly_clean.columns:
-            monthly_clean = monthly_clean[monthly_clean['month'].isin(selected_months)]
+    # Clean recipe data
+    recipe_clean = processor.clean_ingredient_data(recipe_df)
 
-        if not monthly_clean.empty:
-            # Get numeric columns (ingredients)
-            numeric_cols = monthly_clean.select_dtypes(include=[np.number]).columns.tolist()
+    # Map ingredient columns to tracked ingredients
+    ingredient_mapping = {
+        'braised beef used (g)': 'Beef',
+        'Braised Chicken(g)': 'Chicken',
+        'Braised Pork(g)': 'Pork',
+        'Egg(count)': 'Egg',
+        'Rice(g)': 'Rice',
+        'Ramen (count)': 'Ramen',
+        'Rice Noodles(g)': 'Rice Noodles',
+        'flour (g)': 'Flour',
+        'Chicken Wings (pcs)': 'Chicken Wings',
+        'Green Onion': 'Green Onion',
+        'Cilantro': 'Cilantro',
+        'White onion': 'White Onion',
+        'Peas(g)': 'Peas + Carrot',
+        'Carrot(g)': 'Peas + Carrot',
+        'Boychoy(g)': 'Bokchoy',
+        'Tapioca Starch': 'Tapioca Starch'
+    }
 
-            if numeric_cols:
-                # Aggregate by month
-                if 'month' in monthly_clean.columns:
-                    monthly_agg = monthly_clean.groupby('month')[numeric_cols].sum()
+    # Create consumption dataframe
+    consumption_data = []
 
-                    # Select ingredient to analyze
-                    selected_ingredient = st.selectbox("Select Ingredient", numeric_cols)
+    for month in sales_df['month'].unique():
+        month_sales = sales_df[sales_df['month'] == month]
+        month_consumption = {'month': month}
 
-                    if selected_ingredient:
-                        col1, col2 = st.columns([3, 1])
+        # Initialize all ingredients to 0
+        for ing in ingredient_list:
+            month_consumption[ing] = 0
 
-                        with col1:
-                            # Create trend chart
-                            fig = viz.plot_usage_trends(monthly_agg, selected_ingredient)
-                            st.plotly_chart(fig, use_container_width=True)
+        # Calculate consumption for each dish sold
+        for _, sale_row in month_sales.iterrows():
+            dish_name = sale_row['Item Name']
+            quantity_sold = sale_row['Count']
 
-                        with col2:
-                            st.subheader("Statistics")
+            # Find matching recipe
+            recipe_match = recipe_clean[recipe_clean['Item name'].str.contains(dish_name.split()[0], case=False, na=False)]
 
-                            ingredient_data = monthly_agg[selected_ingredient]
+            if not recipe_match.empty:
+                recipe = recipe_match.iloc[0]
 
-                            st.metric("Average", f"{ingredient_data.mean():.1f}")
-                            st.metric("Max", f"{ingredient_data.max():.1f}")
-                            st.metric("Min", f"{ingredient_data.min():.1f}")
-                            st.metric("Std Dev", f"{ingredient_data.std():.1f}")
+                # Add ingredient usage for this dish
+                for recipe_col, tracked_ing in ingredient_mapping.items():
+                    if recipe_col in recipe.index and pd.notna(recipe[recipe_col]):
+                        usage = recipe[recipe_col] * quantity_sold
+                        if tracked_ing in month_consumption:
+                            month_consumption[tracked_ing] += usage
 
-                            # Trend direction
-                            if len(ingredient_data) >= 2:
-                                trend = "📈 Increasing" if ingredient_data.iloc[-1] > ingredient_data.iloc[0] else "📉 Decreasing"
-                                st.write(f"**Trend:** {trend}")
+        consumption_data.append(month_consumption)
 
-                    # Top ingredients by total usage
-                    st.subheader("🔝 Top Ingredients by Usage")
+    return pd.DataFrame(consumption_data)
 
-                    total_usage = monthly_agg.sum().sort_values(ascending=False).head(10)
+# Ingredient Usage Trends Analysis
+if analysis_type == "Ingredient Usage Trends":
+    st.header("📊 Ingredient Usage Trends Over Time")
 
-                    col1, col2 = st.columns([2, 1])
+    if not monthly_item.empty and not ingredient_df.empty:
+        # Calculate ingredient consumption from sales
+        consumption_df = calculate_ingredient_consumption(monthly_item, ingredient_df, tracked_ingredients)
 
-                    with col1:
-                        # Create bar chart
-                        fig_top = viz.plot_top_ingredients(
-                            pd.DataFrame({'ingredient': total_usage.index, 'usage': total_usage.values}),
-                            n=10,
-                            metric='usage'
-                        )
-                        st.plotly_chart(fig_top, use_container_width=True)
+        if not consumption_df.empty:
+            # Filter by selected months
+            if selected_months and 'month' in consumption_df.columns:
+                consumption_df = consumption_df[consumption_df['month'].isin(selected_months)]
 
-                    with col2:
-                        st.dataframe(
-                            pd.DataFrame({'Ingredient': total_usage.index, 'Total Usage': total_usage.values}),
-                            use_container_width=True,
-                            hide_index=True
-                        )
+            if not consumption_df.empty:
+                # Dropdown to select ingredient (showing the 14 tracked ingredients)
+                selected_ingredient = st.selectbox(
+                    "Select Ingredient to Analyze",
+                    tracked_ingredients,
+                    help="Choose from the 14 tracked ingredients"
+                )
 
-    else:
-        st.warning("⚠️ No monthly data available for trend analysis")
-
-# Seasonal Patterns
-elif analysis_type == "Seasonal Patterns":
-    st.header("🌤️ Seasonal Pattern Analysis")
-
-    if not monthly_df.empty:
-        monthly_clean = processor.process_monthly_sales(monthly_df)
-
-        if not monthly_clean.empty and 'month' in monthly_clean.columns:
-            # Detect seasonal patterns
-            seasonal_data = processor.detect_seasonal_patterns(monthly_clean)
-
-            if not seasonal_data.empty:
-                st.success(f"✅ Analyzed {len(seasonal_data)} months of data")
-
-                # Create heatmap
-                numeric_cols = seasonal_data.select_dtypes(include=[np.number]).columns.tolist()
-
-                if len(numeric_cols) > 0:
-                    # Limit to top ingredients for readability
-                    top_ingredients = seasonal_data[numeric_cols].sum().nlargest(15).index.tolist()
-                    heatmap_data = seasonal_data[top_ingredients]
-
-                    fig = viz.plot_heatmap(heatmap_data, title="Seasonal Usage Patterns (Top 15 Ingredients)")
-                    st.plotly_chart(fig, use_container_width=True)
-
-                    # Insights
-                    st.subheader("📊 Seasonal Insights")
-
-                    col1, col2 = st.columns(2)
+                if selected_ingredient:
+                    col1, col2 = st.columns([3, 1])
 
                     with col1:
-                        st.write("**Peak Usage Months:**")
-                        for ingredient in top_ingredients[:5]:
-                            peak_month = seasonal_data[ingredient].idxmax()
-                            peak_value = seasonal_data[ingredient].max()
-                            st.write(f"- **{ingredient}**: {peak_month} ({peak_value:.1f})")
+                        # Create trend chart
+                        import plotly.graph_objects as go
+
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(
+                            x=consumption_df['month'].tolist(),
+                            y=consumption_df[selected_ingredient].tolist(),
+                            mode='lines+markers',
+                            name=selected_ingredient,
+                            line=dict(color='#FF6B6B', width=3),
+                            marker=dict(size=10)
+                        ))
+
+                        fig.update_layout(
+                            title=f"{selected_ingredient} - Monthly Usage Trend",
+                            xaxis_title="Month",
+                            yaxis_title="Usage",
+                            template="plotly_white",
+                            height=500,
+                            hovermode='x unified'
+                        )
+
+                        st.plotly_chart(fig, use_container_width=True)
 
                     with col2:
-                        st.write("**Lowest Usage Months:**")
-                        for ingredient in top_ingredients[:5]:
-                            low_month = seasonal_data[ingredient].idxmin()
-                            low_value = seasonal_data[ingredient].min()
-                            st.write(f"- **{ingredient}**: {low_month} ({low_value:.1f})")
+                        st.subheader("Statistics")
 
-    else:
-        st.warning("⚠️ No monthly data available for seasonal analysis")
+                        ingredient_data = consumption_df[selected_ingredient]
 
-# ABC Classification
-elif analysis_type == "ABC Classification":
-    st.header("🎯 ABC Classification Analysis")
+                        st.metric("Average", f"{ingredient_data.mean():.1f}")
+                        st.metric("Max", f"{ingredient_data.max():.1f}")
+                        st.metric("Min", f"{ingredient_data.min():.1f}")
+                        st.metric("Std Dev", f"{ingredient_data.std():.1f}")
 
-    st.info("""
-    **ABC Analysis** classifies inventory items based on their importance:
-    - **A items**: Top 20% of items (80% of value) - Tight control and accurate records
-    - **B items**: Next 30% of items (15% of value) - Moderate control
-    - **C items**: Remaining 50% of items (5% of value) - Simple controls
-    """)
+                        # Trend direction
+                        if len(ingredient_data) >= 2:
+                            trend = "📈 Increasing" if ingredient_data.iloc[-1] > ingredient_data.iloc[0] else "📉 Decreasing"
+                            st.write(f"**Trend:** {trend}")
 
-    if not monthly_df.empty:
-        monthly_clean = processor.process_monthly_sales(monthly_df)
+                # Top ingredients by total usage
+                st.subheader("🔝 Top Ingredients by Total Usage")
 
-        if not monthly_clean.empty:
-            # Calculate total usage per ingredient
-            numeric_cols = monthly_clean.select_dtypes(include=[np.number]).columns.tolist()
+                total_usage = consumption_df[tracked_ingredients].sum().sort_values(ascending=False)
 
-            if len(numeric_cols) > 0:
-                total_usage = monthly_clean[numeric_cols].sum()
-
-                # Create dataframe
-                abc_df = pd.DataFrame({
-                    'ingredient': total_usage.index,
-                    'total_usage': total_usage.values
-                })
-
-                # Perform ABC classification
-                abc_classified = analytics.identify_abc_classification(abc_df, 'total_usage')
-
-                # Display results
                 col1, col2 = st.columns([2, 1])
 
                 with col1:
-                    fig = viz.plot_abc_analysis(abc_classified)
+                    # Create bar chart
+                    import plotly.graph_objects as go
+
+                    top_10 = total_usage.head(10)
+
+                    fig = go.Figure(data=[
+                        go.Bar(
+                            y=top_10.index.tolist(),
+                            x=top_10.values.tolist(),
+                            orientation='h',
+                            marker_color='#FF6B6B',
+                            text=[f"{x:.0f}" for x in top_10.values],
+                            textposition='auto',
+                        )
+                    ])
+
+                    fig.update_layout(
+                        title="Top 10 Ingredients by Usage",
+                        xaxis_title="Total Usage",
+                        yaxis_title="Ingredient",
+                        template="plotly_white",
+                        height=400
+                    )
+
                     st.plotly_chart(fig, use_container_width=True)
 
                 with col2:
-                    st.subheader("Classification Summary")
-
-                    for cls in ['A', 'B', 'C']:
-                        count = len(abc_classified[abc_classified['abc_class'] == cls])
-                        pct = (count / len(abc_classified)) * 100
-                        st.metric(f"Class {cls}", f"{count} items ({pct:.1f}%)")
-
-                # Show items by class
-                st.subheader("📋 Items by Class")
-
-                tab1, tab2, tab3 = st.tabs(["Class A", "Class B", "Class C"])
-
-                with tab1:
-                    a_items = abc_classified[abc_classified['abc_class'] == 'A']
-                    st.write("**High-value items requiring tight control:**")
                     st.dataframe(
-                        a_items[['ingredient', 'total_usage', 'cumulative_percentage']],
+                        pd.DataFrame({
+                            'Ingredient': total_usage.head(10).index,
+                            'Total Usage': total_usage.head(10).values
+                        }),
                         use_container_width=True,
                         hide_index=True
                     )
-
-                with tab2:
-                    b_items = abc_classified[abc_classified['abc_class'] == 'B']
-                    st.write("**Moderate-value items:**")
-                    st.dataframe(
-                        b_items[['ingredient', 'total_usage', 'cumulative_percentage']],
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                with tab3:
-                    c_items = abc_classified[abc_classified['abc_class'] == 'C']
-                    st.write("**Low-value items with simple controls:**")
-                    st.dataframe(
-                        c_items[['ingredient', 'total_usage', 'cumulative_percentage']],
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
+        else:
+            st.warning("⚠️ Unable to calculate ingredient consumption from sales data")
     else:
-        st.warning("⚠️ No data available for ABC classification")
+        st.warning("⚠️ No sales or recipe data available for analysis")
 
-# Correlation Analysis
-elif analysis_type == "Correlation Analysis":
-    st.header("🔗 Correlation Analysis")
+# Shipment Analysis
+elif analysis_type == "Shipment Analysis":
+    st.header("📦 Shipment Analysis")
 
-    st.info("Identify relationships between different ingredients to optimize procurement and identify usage patterns.")
+    if not shipment_clean.empty:
+        st.subheader("Shipment Frequency Distribution")
 
-    if not monthly_df.empty:
-        monthly_clean = processor.process_monthly_sales(monthly_df)
+        col1, col2 = st.columns([2, 1])
 
-        if not monthly_clean.empty:
-            numeric_cols = monthly_clean.select_dtypes(include=[np.number]).columns.tolist()
+        with col1:
+            # Frequency chart
+            freq_counts = shipment_clean['frequency'].value_counts()
 
-            if len(numeric_cols) > 5:
-                # Limit to top ingredients
-                top_n = st.slider("Number of ingredients to analyze", 5, min(20, len(numeric_cols)), 10)
+            import plotly.graph_objects as go
 
-                total_usage = monthly_clean[numeric_cols].sum().nlargest(top_n)
-                top_ingredients = total_usage.index.tolist()
+            fig = go.Figure(data=[
+                go.Pie(
+                    labels=freq_counts.index,
+                    values=freq_counts.values,
+                    hole=0.4,
+                    marker_colors=['#FF6B6B', '#4ECDC4', '#FFE66D']
+                )
+            ])
 
-                # Calculate correlation
-                corr_data = monthly_clean[top_ingredients]
+            fig.update_layout(
+                title="Ingredients by Shipment Frequency",
+                template="plotly_white",
+                height=400
+            )
 
-                if len(corr_data) > 1:
-                    fig = viz.plot_correlation_matrix(corr_data)
-                    st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
 
-                    # Find strong correlations
-                    st.subheader("🔍 Strong Correlations")
+        with col2:
+            st.write("**Breakdown:**")
+            for freq, count in freq_counts.items():
+                st.metric(freq.title(), f"{count} ingredients")
 
-                    corr_matrix = corr_data.corr()
+        # Detailed shipment table
+        st.subheader("📋 Detailed Shipment Information")
 
-                    # Find pairs with high correlation (excluding diagonal)
-                    strong_corr = []
-                    for i in range(len(corr_matrix.columns)):
-                        for j in range(i+1, len(corr_matrix.columns)):
-                            corr_value = corr_matrix.iloc[i, j]
-                            if abs(corr_value) > 0.7:  # Strong correlation threshold
-                                strong_corr.append({
-                                    'Ingredient 1': corr_matrix.columns[i],
-                                    'Ingredient 2': corr_matrix.columns[j],
-                                    'Correlation': f"{corr_value:.2f}"
-                                })
+        display_df = shipment_clean[['ingredient', 'quantity_per_shipment', 'unit', 'num_shipments', 'frequency']].copy()
+        display_df.columns = ['Ingredient', 'Qty per Shipment', 'Unit', 'Shipments/Month', 'Frequency']
 
-                    if strong_corr:
-                        st.dataframe(
-                            pd.DataFrame(strong_corr),
-                            use_container_width=True,
-                            hide_index=True
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+# Top/Bottom Performers
+elif analysis_type == "Top/Bottom Performers":
+    st.header("🏆 Top & Bottom Performing Ingredients")
+
+    if not monthly_item.empty and not ingredient_df.empty:
+        # Calculate ingredient consumption
+        consumption_df = calculate_ingredient_consumption(monthly_item, ingredient_df, tracked_ingredients)
+
+        if not consumption_df.empty:
+            total_usage = consumption_df[tracked_ingredients].sum().sort_values(ascending=False)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.subheader("🥇 Top 5 Performers")
+                top_5 = total_usage.head(5)
+
+                for i, (ing, usage) in enumerate(top_5.items(), 1):
+                    emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "📦"
+                    st.write(f"{emoji} **{ing}**: {usage:.0f} units")
+
+            with col2:
+                st.subheader("📉 Bottom 5 Performers")
+                bottom_5 = total_usage.tail(5).sort_values(ascending=True)
+
+                for ing, usage in bottom_5.items():
+                    st.write(f"• **{ing}**: {usage:.0f} units")
+
+            # Full ranking
+            with st.expander("📊 View Complete Ranking"):
+                ranking_df = pd.DataFrame({
+                    'Rank': range(1, len(total_usage) + 1),
+                    'Ingredient': total_usage.index,
+                    'Total Usage': total_usage.values
+                })
+
+                st.dataframe(
+                    ranking_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+# Frequency Analysis
+elif analysis_type == "Frequency Analysis":
+    st.header("⏱️ Shipment Frequency Analysis")
+
+    if not shipment_clean.empty:
+        # Group by frequency
+        freq_groups = shipment_clean.groupby('frequency')
+
+        for freq in ['weekly', 'biweekly', 'monthly']:
+            if freq in freq_groups.groups:
+                group = freq_groups.get_group(freq)
+
+                with st.expander(f"📦 {freq.title()} Shipments ({len(group)} ingredients)", expanded=True):
+                    col1, col2 = st.columns([2, 1])
+
+                    with col1:
+                        # Calculate monthly consumption
+                        group_copy = group.copy()
+                        group_copy['monthly_quantity'] = group_copy['quantity_per_shipment'] * group_copy['num_shipments']
+
+                        import plotly.graph_objects as go
+
+                        fig = go.Figure(data=[
+                            go.Bar(
+                                x=group_copy['ingredient'].tolist(),
+                                y=group_copy['monthly_quantity'].tolist(),
+                                marker_color='#4ECDC4',
+                                text=[f"{x:.0f}" for x in group_copy['monthly_quantity']],
+                                textposition='auto'
+                            )
+                        ])
+
+                        fig.update_layout(
+                            title=f"Monthly Consumption - {freq.title()} Items",
+                            xaxis_title="Ingredient",
+                            yaxis_title="Monthly Quantity",
+                            template="plotly_white",
+                            height=300
                         )
-                        st.info("💡 Ingredients with high positive correlation are often used together and can be ordered in sync.")
-                    else:
-                        st.write("No strong correlations found (threshold: |0.7|)")
 
-    else:
-        st.warning("⚠️ No data available for correlation analysis")
+                        st.plotly_chart(fig, use_container_width=True)
+
+                    with col2:
+                        st.write("**Ingredients:**")
+                        for ing in group['ingredient']:
+                            st.write(f"• {ing}")
 
 # Export analytics
 st.markdown("---")
@@ -328,18 +398,8 @@ st.header("📥 Export Analytics")
 col1, col2 = st.columns(2)
 
 with col1:
-    if not monthly_df.empty:
-        csv = monthly_df.to_csv(index=False)
-        st.download_button(
-            label="Download Monthly Data (CSV)",
-            data=csv,
-            file_name="monthly_analytics.csv",
-            mime="text/csv"
-        )
-
-with col2:
-    if not shipment_df.empty:
-        csv = shipment_df.to_csv(index=False)
+    if not shipment_clean.empty:
+        csv = shipment_clean.to_csv(index=False)
         st.download_button(
             label="Download Shipment Data (CSV)",
             data=csv,
@@ -347,6 +407,18 @@ with col2:
             mime="text/csv"
         )
 
+with col2:
+    if not monthly_item.empty and not ingredient_df.empty:
+        consumption_df = calculate_ingredient_consumption(monthly_item, ingredient_df, tracked_ingredients)
+        if not consumption_df.empty:
+            csv = consumption_df.to_csv(index=False)
+            st.download_button(
+                label="Download Usage Data (CSV)",
+                data=csv,
+                file_name="ingredient_usage.csv",
+                mime="text/csv"
+            )
+
 # Footer
 st.markdown("---")
-st.info("💡 **Tip:** Use analytics insights to optimize ordering patterns and reduce costs.")
+st.info("💡 **Tip:** Use these analytics to optimize ordering patterns and reduce costs based on actual consumption of the 14 tracked ingredients.")
