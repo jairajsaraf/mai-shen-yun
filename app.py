@@ -34,9 +34,21 @@ st.set_page_config(
 # Load banner image with base64 encoding
 banner_base64 = get_base64_image("assets/banner.png")
 
+# Banner customization settings
+
+BANNER_ZOOM = "contain"  # Adjust zoom: "100%" = normal, "120%" = zoom in, "80%" = zoom out
+
+BANNER_POSITION = "center"  # Options: "center", "top", "bottom", "left", "right", or "center top", etc.
+
+TITLE_COLOR = "#FFD700"  # Color for "Mai Shen Yun" title (default: gold #FFD700)
+
+ 
+
 # Build CSS with background image or gradient fallback
+
 if banner_base64:
-    banner_background = f"background-image: url(data:image/png;base64,{banner_base64}); background-size: cover; background-position: center;"
+
+    banner_background = f"background-image: url(data:image/png;base64,{banner_base64}); background-size: {BANNER_ZOOM}; background-position: {BANNER_POSITION}; background-repeat: no-repeat;"
 else:
     # Fallback to gradient if image not found
     banner_background = "background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);"
@@ -73,7 +85,7 @@ st.markdown(f"""
     .main-header {{
         font-size: 4rem;
         font-weight: 900;
-        color: white;
+        color: {TITLE_COLOR};
         text-align: center;
         padding: 0.5rem;
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);

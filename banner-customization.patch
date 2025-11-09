@@ -1,0 +1,76 @@
+diff --git a/app.py b/app.py
+index 048ddb0..29a4a96 100644
+--- a/app.py
++++ b/app.py
+@@ -34,9 +34,14 @@ st.set_page_config(
+ # Load banner image with base64 encoding
+ banner_base64 = get_base64_image("assets/banner.png")
+ 
++# Banner customization settings
++BANNER_ZOOM = "100%"  # Adjust zoom: "100%" = normal, "120%" = zoom in, "80%" = zoom out
++BANNER_POSITION = "center"  # Options: "center", "top", "bottom", "left", "right", or "center top", etc.
++TITLE_COLOR = "#FFD700"  # Color for "Mai Shen Yun" title (default: gold #FFD700)
++
+ # Build CSS with background image or gradient fallback
+ if banner_base64:
+-    banner_background = f"background-image: url(data:image/png;base64,{banner_base64}); background-size: cover; background-position: center;"
++    banner_background = f"background-image: url(data:image/png;base64,{banner_base64}); background-size: {BANNER_ZOOM}; background-position: {BANNER_POSITION}; background-repeat: no-repeat;"
+ else:
+     # Fallback to gradient if image not found
+     banner_background = "background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);"
+@@ -73,7 +78,7 @@ st.markdown(f"""
+     .main-header {{
+         font-size: 4rem;
+         font-weight: 900;
+-        color: white;
++        color: {TITLE_COLOR};
+         text-align: center;
+         padding: 0.5rem;
+         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+diff --git a/assets/README.md b/assets/README.md
+index 8f45239..57edec8 100644
+--- a/assets/README.md
++++ b/assets/README.md
+@@ -21,6 +21,45 @@ To use a custom banner image on the homepage:
+    - If `banner.png` is not found, the dashboard will use a gradient background
+    - No errors will occur if the image is missing
+ 
++## Customization Options
++
++In `app.py` (lines 37-40), you can customize the banner appearance:
++
++### 1. Banner Zoom Level
++```python
++BANNER_ZOOM = "100%"  # Adjust the zoom level
++```
++- `"100%"` = Normal size (default)
++- `"120%"` = Zoom in (shows less of the image, more detailed)
++- `"80%"` = Zoom out (shows more of the image)
++- `"cover"` = Cover entire container (original behavior)
++- `"contain"` = Fit entire image within container
++
++### 2. Banner Position
++```python
++BANNER_POSITION = "center"  # Adjust which part of the image is visible
++```
++- `"center"` = Center the image (default)
++- `"top"` = Show top portion of image
++- `"bottom"` = Show bottom portion of image
++- `"left"` = Show left portion of image
++- `"right"` = Show right portion of image
++- `"center top"` = Center horizontally, show top
++- `"center bottom"` = Center horizontally, show bottom
++- `"25% 75%"` = Custom positioning (X% Y%)
++
++### 3. Title Color
++```python
++TITLE_COLOR = "#FFD700"  # Color for "Mai Shen Yun" title
++```
++Common colors:
++- `"#FFD700"` = Gold (default)
++- `"white"` = White
++- `"#FF6B6B"` = Red
++- `"#4ECDC4"` = Turquoise
++- `"#95E1D3"` = Mint
++- Any valid CSS color (hex, rgb, color name)
++
