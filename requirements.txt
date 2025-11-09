@@ -1,5 +1,6 @@
 # Core Dependencies - Updated for Python 3.13 compatibility
-streamlit>=1.31.0
+# Streamlit 1.35.0+ required for custom fonts via config.toml
+streamlit>=1.35.0
 pandas>=2.2.0
 numpy>=1.26.0
 
