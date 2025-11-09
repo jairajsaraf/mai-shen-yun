@@ -1,6 +1,6 @@
 """
 Predictions Page
-Forecasting and predictive analytics
+Forecasting and predictive analytics for the 14 tracked ingredients
 """
 
 import streamlit as st
@@ -44,7 +44,14 @@ viz = InventoryVisualizations()
 # Load data
 ingredient_df = loader.load_ingredient_data()
 shipment_df = loader.load_shipment_data()
-monthly_df = loader.load_monthly_data()
+
+# Load all sheets for proper ingredient tracking
+all_sheets = loader.load_all_sheets()
+monthly_item = all_sheets['item']
+
+# Get the 14 tracked ingredients
+shipment_clean = processor.clean_shipment_data(shipment_df)
+tracked_ingredients = shipment_clean['ingredient'].tolist() if not shipment_clean.empty else []
 
 # Sidebar
 with st.sidebar:
@@ -66,31 +73,101 @@ with st.sidebar:
     confidence_level = st.slider("Confidence Level (%)", 80, 99, 95)
 
     st.markdown("---")
-    st.info("🔮 Adjust settings to refine forecasts")
+    st.info(f"🔮 Forecasting for {len(tracked_ingredients)} tracked ingredients")
+
+# Helper function to calculate ingredient consumption (same as Analytics page)
+def calculate_ingredient_consumption(sales_df, recipe_df, ingredient_list):
+    """Calculate ingredient consumption based on dish sales and recipes"""
+    if sales_df.empty or recipe_df.empty:
+        return pd.DataFrame()
+
+    # Ensure Count is numeric
+    if 'Count' in sales_df.columns:
+        sales_df['Count'] = pd.to_numeric(sales_df['Count'], errors='coerce').fillna(0)
+
+    # Clean recipe data
+    recipe_clean = processor.clean_ingredient_data(recipe_df)
+
+    # Map ingredient columns to tracked ingredients
+    ingredient_mapping = {
+        'braised beef used (g)': 'Beef',
+        'Braised Chicken(g)': 'Chicken',
+        'Braised Pork(g)': 'Pork',
+        'Egg(count)': 'Egg',
+        'Rice(g)': 'Rice',
+        'Ramen (count)': 'Ramen',
+        'Rice Noodles(g)': 'Rice Noodles',
+        'flour (g)': 'Flour',
+        'Chicken Wings (pcs)': 'Chicken Wings',
+        'Green Onion': 'Green Onion',
+        'Cilantro': 'Cilantro',
+        'White onion': 'White Onion',
+        'Peas(g)': 'Peas + Carrot',
+        'Carrot(g)': 'Peas + Carrot',
+        'Boychoy(g)': 'Bokchoy',
+        'Tapioca Starch': 'Tapioca Starch'
+    }
+
+    # Create consumption dataframe
+    consumption_data = []
+
+    for month in sales_df['month'].unique():
+        month_sales = sales_df[sales_df['month'] == month]
+        month_consumption = {'month': month}
+
+        # Initialize all ingredients to 0
+        for ing in ingredient_list:
+            month_consumption[ing] = 0
+
+        # Calculate consumption for each dish sold
+        for _, sale_row in month_sales.iterrows():
+            dish_name = sale_row['Item Name']
+            quantity_sold = sale_row['Count']
+
+            # Skip if dish_name is not a valid string
+            if pd.isna(dish_name) or not isinstance(dish_name, str) or len(dish_name.strip()) == 0:
+                continue
+
+            # Find matching recipe
+            recipe_match = recipe_clean[recipe_clean['dish_name'].str.contains(dish_name.split()[0], case=False, na=False)]
+
+            if not recipe_match.empty:
+                recipe = recipe_match.iloc[0]
+
+                # Add ingredient usage for this dish
+                for recipe_col, tracked_ing in ingredient_mapping.items():
+                    if recipe_col in recipe.index and pd.notna(recipe[recipe_col]):
+                        usage = recipe[recipe_col] * quantity_sold
+                        if tracked_ing in month_consumption:
+                            month_consumption[tracked_ing] += usage
+
+        consumption_data.append(month_consumption)
+
+    return pd.DataFrame(consumption_data)
 
 # Main content
 st.header("📊 Demand Forecasting")
 
-if not monthly_df.empty:
-    monthly_clean = processor.process_monthly_sales(monthly_df)
+if not monthly_item.empty and not ingredient_df.empty and tracked_ingredients:
+    # Calculate ingredient consumption from sales
+    consumption_df = calculate_ingredient_consumption(monthly_item, ingredient_df, tracked_ingredients)
 
-    if not monthly_clean.empty:
-        numeric_cols = monthly_clean.select_dtypes(include=[np.number]).columns.tolist()
+    if not consumption_df.empty:
+        # Select ingredient to forecast (showing the 14 tracked ingredients)
+        selected_ingredient = st.selectbox(
+            "Select Ingredient to Forecast",
+            tracked_ingredients,
+            help="Choose from the 14 tracked ingredients"
+        )
 
-        if len(numeric_cols) > 0:
-            # Select ingredient to forecast
-            selected_ingredient = st.selectbox(
-                "Select Ingredient to Forecast",
-                sorted(numeric_cols)
-            )
+        if selected_ingredient:
+            # Get historical data
+            if 'month' in consumption_df.columns and selected_ingredient in consumption_df.columns:
+                historical = consumption_df.groupby('month')[selected_ingredient].sum()
+            else:
+                historical = pd.Series([0])
 
-            if selected_ingredient:
-                # Get historical data
-                if 'month' in monthly_clean.columns:
-                    historical = monthly_clean.groupby('month')[selected_ingredient].sum()
-                else:
-                    historical = monthly_clean[selected_ingredient]
-
+            if len(historical) > 0:
                 # Generate forecast based on selected method
                 if forecast_method == "Moving Average":
                     forecast = predictor.moving_average_forecast(historical, periods=forecast_periods)
@@ -128,12 +205,12 @@ if not monthly_df.empty:
                 # Forecast details
                 st.subheader("📋 Detailed Forecast")
 
-                # Create forecast dataframe
+                # Create forecast dataframe with MM-DD-YYYY format
                 start_date = datetime.now()
                 dates = [start_date + timedelta(days=i) for i in range(len(forecast))]
 
                 forecast_df = pd.DataFrame({
-                    'Date': dates,
+                    'Date': [d.strftime('%m-%d-%Y') for d in dates],  # MM-DD-YYYY format
                     'Day': range(1, len(forecast) + 1),
                     'Forecasted Quantity': forecast.values
                 })
@@ -172,7 +249,7 @@ if not monthly_df.empty:
                         # Historical
                         fig_compare.add_trace(go.Scatter(
                             x=list(range(len(historical))),
-                            y=historical,
+                            y=historical.tolist(),
                             mode='lines+markers',
                             name='Historical',
                             line=dict(width=3)
@@ -184,7 +261,7 @@ if not monthly_df.empty:
                             forecast_x = list(range(len(historical), len(historical) + len(forecast_data)))
                             fig_compare.add_trace(go.Scatter(
                                 x=forecast_x,
-                                y=forecast_data,
+                                y=forecast_data.tolist(),
                                 mode='lines',
                                 name=method.replace('_', ' ').title(),
                                 line=dict(dash='dash', color=colors[i % len(colors)])
@@ -199,7 +276,8 @@ if not monthly_df.empty:
                         )
 
                         st.plotly_chart(fig_compare, use_container_width=True)
-
+    else:
+        st.warning("⚠️ Unable to calculate ingredient consumption from sales data")
 else:
     st.warning("⚠️ No historical data available for forecasting")
 
@@ -234,9 +312,9 @@ if not shipment_df.empty:
 
         reorder_predictions.append({
             'Ingredient': row['ingredient'],
-            'Current Stock': row['current_stock'].round(1),
-            'Daily Usage': row['avg_daily_usage'].round(1),
-            'Days Until Reorder': days_until,
+            'Current Stock': round(float(row['current_stock']), 1),  # Fixed: use round() function
+            'Daily Usage': round(float(row['avg_daily_usage']), 1),  # Fixed: use round() function
+            'Days Until Reorder': int(days_until),
             'Predicted Reorder Date': reorder_date,
             'Recommended Quantity': row['quantity_per_shipment']
         })
@@ -285,19 +363,25 @@ with st.expander("Run What-If Scenarios", expanded=False):
     col1, col2 = st.columns(2)
 
     with col1:
-        menu_item = st.selectbox(
-            "Select Menu Item",
-            ingredient_df['dish_name'].tolist() if 'dish_name' in ingredient_df.columns else []
-        )
+        # Use tracked ingredients instead of dish_name
+        if tracked_ingredients:
+            selected_ing = st.selectbox(
+                "Select Ingredient",
+                tracked_ingredients
+            )
 
-        demand_increase = st.slider("Demand Increase (%)", 0, 200, 50)
+            demand_increase = st.slider("Demand Increase (%)", 0, 200, 50)
+        else:
+            st.warning("No ingredients available")
+            selected_ing = None
+            demand_increase = 0
 
     with col2:
         st.write("**Impact Prediction:**")
 
-        if menu_item:
+        if selected_ing:
             st.info(f"""
-            If demand for **{menu_item}** increases by **{demand_increase}%**:
+            If demand for dishes using **{selected_ing}** increases by **{demand_increase}%**:
 
             - Ingredient usage will increase proportionally
             - Reorder frequency may need adjustment
