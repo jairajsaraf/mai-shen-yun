@@ -6,6 +6,7 @@ Main Application Entry Point
 import streamlit as st
 import pandas as pd
 import sys
+import base64
 from pathlib import Path
 
 # Add src to path
@@ -13,6 +14,14 @@ sys.path.append(str(Path(__file__).parent / 'src'))
 
 from data_loader import DataLoader
 from visualizations import InventoryVisualizations
+
+def get_base64_image(image_path):
+    """Read and encode image file to base64 string"""
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except FileNotFoundError:
+        return None
 
 # Page configuration
 st.set_page_config(
@@ -22,86 +31,94 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Load banner image with base64 encoding
+banner_base64 = get_base64_image("assets/banner.png")
+
+# Build CSS with background image or gradient fallback
+if banner_base64:
+    banner_background = f"background-image: url(data:image/png;base64,{banner_base64}); background-size: cover; background-position: center;"
+else:
+    # Fallback to gradient if image not found
+    banner_background = "background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);"
+
 # Custom CSS
-st.markdown("""
+st.markdown(f"""
     <style>
     /* Banner styling */
-    .banner-container {
+    .banner-container {{
         position: relative;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        {banner_background}
         padding: 3rem 2rem;
         border-radius: 1rem;
         margin-bottom: 2rem;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         overflow: hidden;
-    }
+    }}
 
-    .banner-pattern {
+    .banner-overlay {{
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background-image:
-            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
-        background-size: 100% 100%;
-    }
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 0;
+    }}
 
-    .banner-content {
+    .banner-content {{
         position: relative;
         z-index: 1;
-    }
+    }}
 
-    .main-header {
+    .main-header {{
         font-size: 4rem;
         font-weight: 900;
         color: white;
         text-align: center;
         padding: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         letter-spacing: 2px;
         margin: 0;
-    }
+    }}
 
-    .sub-header {
+    .sub-header {{
         font-size: 1.5rem;
         color: rgba(255, 255, 255, 0.95);
         text-align: center;
         margin-top: 0.5rem;
         font-weight: 300;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-    }
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+    }}
 
-    .banner-tagline {
+    .banner-tagline {{
         font-size: 1rem;
-        color: rgba(255, 255, 255, 0.85);
+        color: rgba(255, 255, 255, 0.9);
         text-align: center;
         margin-top: 1rem;
         font-style: italic;
-    }
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+    }}
 
-    .metric-card {
+    .metric-card {{
         background-color: #f0f2f6;
         padding: 1rem;
         border-radius: 0.5rem;
         border-left: 4px solid #667eea;
-    }
+    }}
 
-    .stAlert {
+    .stAlert {{
         margin-top: 1rem;
-    }
+    }}
     </style>
 """, unsafe_allow_html=True)
 
 def main():
     """Main application function"""
 
-    # Branded Banner Header
+    # Branded Banner Header (with PNG background if available, gradient fallback otherwise)
     st.markdown('''
     <div class="banner-container">
-        <div class="banner-pattern"></div>
+        <div class="banner-overlay"></div>
         <div class="banner-content">
             <h1 class="main-header">🍜 Mai Shen Yun</h1>
             <p class="sub-header">Intelligent Inventory Management Dashboard</p>
